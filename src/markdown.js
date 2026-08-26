@@ -44,11 +44,12 @@ renderer.link = function ({ href, title, tokens }) {
   return `<a href="${escapeAttr(href)}"${titleAttr} target="_blank" rel="noopener">${text}</a>`;
 };
 
-// 任务列表项
+// 任务列表项：用 parse（非 parseInline）处理可能含嵌套列表的 tokens
 renderer.listitem = function (item) {
+  // marked v14 的 tokens 可能含 list/text 等块级 token，用 parse 处理
   let text = "";
   if (item.tokens) {
-    text = this.parser.parseInline(item.tokens);
+    text = this.parser.parse(item.tokens);
   } else if (item.text) {
     text = escapeHtml(item.text);
   }
