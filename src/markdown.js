@@ -95,11 +95,11 @@ export function parseMarkdown(md) {
 /** 行内数学提取/还原（与 postrender 共用） */
 function extractInlineMath(text) {
   const placeholders = [];
+  // 块级 $$...$$ 转成 ```math 围栏块，由 renderer.code 的 lang=math 分支处理
   text = text.replace(/\$\$([\s\S]+?)\$\$/g, (_, tex) => {
-    const id = placeholders.length;
-    placeholders.push({ type: "block", tex });
-    return `\n\n$$\n${tex}\n$$\n\n`;
+    return `\n\n\`\`\`math\n${tex.trim()}\n\`\`\`\n\n`;
   });
+  // 行内 $...$ 提取为占位
   text = text.replace(/(?<!\\)\$([^\$\n]+?)(?<!\\)\$/g, (_, tex) => {
     placeholders.push({ type: "inline", tex });
     return `§MATH${placeholders.length - 1}§`;

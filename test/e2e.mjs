@@ -96,20 +96,20 @@ async function run() {
     if (afterTabs > beforeTabs) ok(`新建标签页 (${beforeTabs} → ${afterTabs})`); else bad("新建标签页", "数量未增");
   } catch (e) { bad("新建标签页", e.message); }
 
-  // 10. 编辑器即时渲染：点击块进入源码态
+  // 10. 编辑器即时渲染：点击进入源码编辑态
   try {
     // 新建标签页后 active 是空标签，先切回第一个有内容的标签
     await page.locator("#tab-bar .tab").first().click();
     await page.waitForTimeout(500);
-    // 等待异步渲染（mermaid）稳定后，用 JS 触发 h1 的 click 事件
+    // 等待异步渲染（mermaid）稳定后，点击 editor 触发进入编辑态
     await page.evaluate(() => {
-      const h1 = document.querySelector("#editor h1");
-      if (h1) h1.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      const ed = document.getElementById("editor");
+      if (ed) ed.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
     await page.waitForTimeout(300);
-    const editingBlock = await page.locator("#editor .md-block.editing").count();
-    if (editingBlock >= 1) ok(`块级即时渲染-进入编辑态`); else bad("块级即时渲染-进入编辑态", "无 .editing");
-  } catch (e) { bad("块级即时渲染-进入编辑态", e.message.slice(0, 80)); }
+    const editing = await page.locator("#editor.editing-mode").count();
+    if (editing >= 1) ok(`编辑器进入源码编辑态`); else bad("编辑器进入源码编辑态", "无 .editing-mode");
+  } catch (e) { bad("编辑器进入源码编辑态", e.message.slice(0, 80)); }
 
   // 11. 状态栏字数统计
   try {

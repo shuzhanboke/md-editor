@@ -205,10 +205,12 @@
   font-style: italic;
 }
 
-/* 选中时 markdown 源码标记 */
-#editor .md-source {
-  display: none;
-}
-#editor .md-block.editing .md-source {
-  display: inline;
+/* 源码编辑态：整体显示纯文本源码 */
+#editor.editing-mode {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  background: var(--code-bg);
+  border-radius: 6px;
 }

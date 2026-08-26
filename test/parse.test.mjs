@@ -1,5 +1,5 @@
 // 验收测试：markdown 解析全功能覆盖
-import { parseMarkdown } from "./src/markdown.js";
+import { parseMarkdown } from "../src/markdown.js";
 
 const cases = [
   { name: "标题+段落", md: "# 一级标题\n\n这是段落。", check: h => h.includes("<h1") && h.includes("一级标题") && h.includes("<p>这是段落。</p>") },

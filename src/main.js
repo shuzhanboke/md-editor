@@ -56,10 +56,11 @@ class App {
   constructor() {
     this.tabs = []; // {id, path, name, content, dirty, editor}
     this.activeTabId = null;
-    this.theme = "light";
-    this.sidebarCollapsed = false;
-    this.outlineCollapsed = true;
-    this.currentDir = null;
+    // 从 localStorage 恢复上次状态（侧边栏、大纲、主题）
+    this.theme = localStorage.getItem("md-theme") || "light";
+    this.sidebarCollapsed = localStorage.getItem("md-sidebar") !== "open";
+    this.outlineCollapsed = localStorage.getItem("md-outline") !== "open";
+    this.currentDir = localStorage.getItem("md-lastdir") || null;
 
     this.editorEl = document.getElementById("editor");
     this.editor = null;
@@ -115,12 +116,19 @@ class App {
   _syncInitialUI() {
     document.getElementById("sidebar").classList.toggle("collapsed", this.sidebarCollapsed);
     document.getElementById("outline").classList.toggle("collapsed", this.outlineCollapsed);
+    // 应用主题
+    const light = document.getElementById("theme-light");
+    const dark = document.getElementById("theme-dark");
+    light.disabled = this.theme === "dark";
+    dark.disabled = this.theme !== "dark";
+    document.documentElement.setAttribute("data-theme", this.theme);
   }
 
   async _initSidebar() {
     if (api.env.isTauri) {
       try {
-        const dir = await api.getDefaultDir();
+        // 优先用记忆的上次目录，否则用默认目录
+        const dir = this.currentDir || await api.getDefaultDir();
         this.currentDir = dir;
         await this._refreshFileTree(dir);
       } catch (e) {
@@ -273,7 +281,12 @@ class App {
     try {
       const content = await api.readFile(path);
       const name = this._baseName(path);
-      // 检查是否已打开
+      // 记忆文件所在目录
+      const dir = path.replace(/[\\/][^\\/]+$/, "");
+      if (dir) {
+        this.currentDir = dir;
+        localStorage.setItem("md-lastdir", dir);
+      }
       const existing = this.tabs.find((t) => t.path === path);
       if (existing) {
         this._activateTab(existing.id, content);
@@ -384,6 +397,7 @@ class App {
     light.disabled = this.theme === "dark";
     dark.disabled = this.theme !== "dark";
     document.documentElement.setAttribute("data-theme", this.theme);
+    localStorage.setItem("md-theme", this.theme);
     // 重新渲染 mermaid 以适配主题
     reinitMermaid();
     if (this.editor) {
@@ -395,12 +409,14 @@ class App {
   toggleSidebar() {
     this.sidebarCollapsed = !this.sidebarCollapsed;
     document.getElementById("sidebar").classList.toggle("collapsed", this.sidebarCollapsed);
+    localStorage.setItem("md-sidebar", this.sidebarCollapsed ? "closed" : "open");
   }
 
   /** 大纲 */
   toggleOutline() {
     this.outlineCollapsed = !this.outlineCollapsed;
     document.getElementById("outline").classList.toggle("collapsed", this.outlineCollapsed);
+    localStorage.setItem("md-outline", this.outlineCollapsed ? "closed" : "open");
   }
 
   /** 大纲渲染 */
