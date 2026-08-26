@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MD 编辑器</title>
+  <link rel="stylesheet" href="./styles/base.css" />
+  <link rel="stylesheet" href="./styles/editor.css" />
+  <link rel="stylesheet" href="./styles/themes/light.css" id="theme-light" />
+  <link rel="stylesheet" href="./styles/themes/dark.css" id="theme-dark" disabled />
+  <link rel="stylesheet" href="./styles/sidebar.css" />
+  <link rel="stylesheet" href="./styles/tabs.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- 顶部标题栏 -->
+    <div id="titlebar">
+      <div class="titlebar-left">
+        <span class="app-title">📝 MD 编辑器</span>
+      </div>
+      <div class="titlebar-center">
+        <span id="current-file-name">未命名</span>
+      </div>
+      <div class="titlebar-right">
+        <button id="btn-new" title="新建 (Ctrl+N)">＋</button>
+        <button id="btn-open" title="打开 (Ctrl+O)">📂</button>
+        <button id="btn-save" title="保存 (Ctrl+S)">💾</button>
+        <button id="btn-export" title="导出">⤓</button>
+        <button id="btn-theme" title="切换主题">🎨</button>
+        <button id="btn-outline" title="大纲">☰</button>
+        <button id="btn-sidebar" title="侧边栏">📑</button>
+      </div>
+    </div>
+
+    <div id="main">
+      <!-- 文件树侧边栏 -->
+      <div id="sidebar">
+        <div class="sidebar-header">
+          <span>文件</span>
+        </div>
+        <div id="file-tree"></div>
+      </div>
+
+      <!-- 标签页 -->
+      <div id="tab-bar"></div>
+
+      <!-- 编辑区 -->
+      <div id="editor-container">
+        <div id="editor" contenteditable="true" spellcheck="false"></div>
+      </div>
+
+      <!-- 大纲面板 -->
+      <div id="outline">
+        <div class="sidebar-header">
+          <span>大纲</span>
+        </div>
+        <div id="outline-list"></div>
+      </div>
+    </div>
+
+    <!-- 状态栏 -->
+    <div id="statusbar">
+      <span id="status-info">就绪</span>
+      <span id="status-stats">0 字 · 0 词</span>
+    </div>
+  </div>
+
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

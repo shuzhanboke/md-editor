@@ -1,0 +1,24 @@
+# 依赖
+node_modules/
+
+# 构建产物
+dist/
+src-tauri/target/
+release/
+
+# Tauri 生成
+src-tauri/gen/
+
+# 会话元数据
+.reasonix/
+
+# 系统
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# 临时
+*.log

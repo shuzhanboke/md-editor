@@ -1,0 +1,30 @@
+/* ============ 暗色主题 ============ */
+:root {
+  --bg-content: #1e1e1e;
+  --titlebar-bg: #252526;
+  --statusbar-bg: #252526;
+  --border-color: #3c3c3c;
+  --text-color: #d4d4d4;
+  --text-secondary: #808080;
+  --hover-bg: #2a2d2e;
+  --accent-color: #569cd6;
+  --caret-color: #d4d4d4;
+  --scrollbar-thumb: #4a4a4a;
+  --scrollbar-thumb-hover: #6a6a6a;
+
+  --link-color: #569cd6;
+  --code-bg: #2d2d2d;
+  --code-border: #3c3c3c;
+  --pre-bg: #1e1e1e;
+  --quote-bg: #252526;
+  --quote-border: #569cd6;
+  --table-header-bg: #2d2d2d;
+  --table-stripe-bg: #252526;
+  --mark-bg: #5a4a00;
+
+  --sidebar-bg: #252526;
+  --sidebar-item-active: #2a2d2e;
+  --tab-bg: #2d2d2d;
+  --tab-active-bg: #1e1e1e;
+  --tab-border: #3c3c3c;
+}

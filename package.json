@@ -1,0 +1,23 @@
+{
+  "name": "md-editor",
+  "version": "0.1.0",
+  "description": "A Typora-style local Markdown editor",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.11.1",
+    "highlight.js": "^11.10.0",
+    "katex": "^0.16.11",
+    "marked": "^14.1.4",
+    "mermaid": "^11.4.1"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.1.0",
+    "vite": "^5.4.10"
+  }
+}

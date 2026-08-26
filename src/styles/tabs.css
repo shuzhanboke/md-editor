@@ -1,0 +1,71 @@
+/* ============ 标签页 ============ */
+#tab-bar {
+  display: flex;
+  align-items: stretch;
+  background: var(--tab-bg);
+  border-bottom: 1px solid var(--tab-border);
+  height: 36px;
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+#tab-bar::-webkit-scrollbar { display: none; }
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: var(--tab-bg);
+  border-right: 1px solid var(--tab-border);
+  cursor: pointer;
+  white-space: nowrap;
+  position: relative;
+  min-width: 100px;
+  max-width: 200px;
+}
+.tab:hover {
+  background: var(--hover-bg);
+  color: var(--text-color);
+}
+.tab.active {
+  background: var(--tab-active-bg);
+  color: var(--text-color);
+}
+.tab.active::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  height: 2px;
+  background: var(--accent-color);
+}
+.tab .tab-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tab .tab-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-color);
+  flex-shrink: 0;
+  display: none;
+}
+.tab.dirty .tab-dot { display: block; }
+.tab .tab-close {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.tab .tab-close:hover {
+  background: var(--hover-bg);
+  color: var(--text-color);
+}

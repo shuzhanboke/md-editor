@@ -1,0 +1,30 @@
+/* ============ 浅色主题（默认） ============ */
+:root {
+  --bg-content: #ffffff;
+  --titlebar-bg: #f7f7f7;
+  --statusbar-bg: #f7f7f7;
+  --border-color: #e6e6e6;
+  --text-color: #303133;
+  --text-secondary: #909399;
+  --hover-bg: #ebeef5;
+  --accent-color: #409eff;
+  --caret-color: #303133;
+  --scrollbar-thumb: #c0c4cc;
+  --scrollbar-thumb-hover: #909399;
+
+  --link-color: #4183c4;
+  --code-bg: #f6f8fa;
+  --code-border: #e1e4e8;
+  --pre-bg: #f6f8fa;
+  --quote-bg: #f9f9f9;
+  --quote-border: #dfe2e5;
+  --table-header-bg: #f6f8fa;
+  --table-stripe-bg: #f9f9fb;
+  --mark-bg: #fff3a0;
+
+  --sidebar-bg: #f7f7f7;
+  --sidebar-item-active: #e0e6f0;
+  --tab-bg: #f0f0f0;
+  --tab-active-bg: #ffffff;
+  --tab-border: #d0d0d0;
+}
