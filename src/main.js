@@ -104,6 +104,255 @@ class App {
         }
       }
     });
+
+    // 右键上下文菜单（复制为 HTML/纯文本/源码）
+    this._initContextMenu();
+
+    // 全局搜索面板事件
+    document.getElementById("search-input").addEventListener("input", () => this.doSearch());
+    document.getElementById("search-use-regex").addEventListener("change", () => this.doSearch());
+    document.getElementById("search-close").addEventListener("click", () => {
+      document.getElementById("search-panel").classList.add("hidden");
+    });
+
+    // 图片粘贴/拖拽到编辑器自动保存到 assets
+    this._initImagePaste();
+
+    // 自定义 CSS
+    document.getElementById("btn-customcss").addEventListener("click", () => this.toggleCustomCss());
+    document.getElementById("css-close").addEventListener("click", () => this.toggleCustomCss());
+    document.getElementById("css-apply").addEventListener("click", () => this.applyCustomCss());
+    document.getElementById("css-reset").addEventListener("click", () => this.resetCustomCss());
+    // 启动时加载自定义 CSS
+    this._loadCustomCss();
+  }
+
+  /** 切换自定义 CSS 弹窗 */
+  toggleCustomCss() {
+    const modal = document.getElementById("css-modal");
+    modal.classList.toggle("hidden");
+    if (!modal.classList.contains("hidden")) {
+      document.getElementById("css-editor").value = localStorage.getItem("md-customcss") || "";
+      setTimeout(() => document.getElementById("css-editor").focus(), 50);
+    }
+  }
+
+  /** 应用自定义 CSS */
+  applyCustomCss() {
+    const css = document.getElementById("css-editor").value;
+    localStorage.setItem("md-customcss", css);
+    this._injectCustomCss(css);
+    document.getElementById("css-modal").classList.add("hidden");
+    this._toast("自定义 CSS 已应用");
+  }
+
+  /** 重置自定义 CSS */
+  resetCustomCss() {
+    localStorage.removeItem("md-customcss");
+    this._injectCustomCss("");
+    document.getElementById("css-editor").value = "";
+    this._toast("已重置为默认样式");
+  }
+
+  /** 启动加载自定义 CSS */
+  _loadCustomCss() {
+    const css = localStorage.getItem("md-customcss");
+    if (css) this._injectCustomCss(css);
+  }
+
+  /** 注入/更新自定义 CSS style 标签 */
+  _injectCustomCss(css) {
+    let el = document.getElementById("custom-css");
+    if (!el) {
+      el = document.createElement("style");
+      el.id = "custom-css";
+      document.head.appendChild(el);
+    }
+    el.textContent = css || "";
+  }
+
+  _initImagePaste() {
+    const ed = document.getElementById("editor");
+    // 粘贴图片
+    ed.addEventListener("paste", (e) => this._handlePasteImage(e));
+    // 拖拽图片
+    ed.addEventListener("drop", (e) => this._handleDropImage(e));
+    ed.addEventListener("dragover", (e) => e.preventDefault());
+  }
+
+  /** 粘贴处理：检测剪贴板图片或表格数据（Excel/CSV） */
+  async _handlePasteImage(e) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    // 1. 优先处理图片
+    for (const item of items) {
+      if (item.type.startsWith("image/")) {
+        const file = item.getAsFile();
+        if (file) {
+          e.preventDefault();
+          await this._saveAndInsertImage(file);
+          return;
+        }
+      }
+    }
+    // 2. 处理表格文本（Excel/Sheets 复制的，含 Tab 分隔的多行）
+    const text = e.clipboardData?.getData("text/plain");
+    if (text && this._looksLikeTable(text)) {
+      const md = this._csvToMarkdownTable(text);
+      if (md) {
+        e.preventDefault();
+        this.editor.insertAtCursor(md);
+        this._toast("已转换为 Markdown 表格");
+      }
+    }
+  }
+
+  /** 判断文本是否像表格（多行多列 Tab 分隔） */
+  _looksLikeTable(text) {
+    const lines = text.trim().split(/\r?\n/);
+    if (lines.length < 2) return false;
+    // 至少 2 行含 Tab 或逗号，且列数一致
+    const cols = lines.map((l) => (l.includes("\t") ? l.split("\t") : l.split(",")));
+    if (cols.some((c) => c.length < 2)) return false;
+    const first = cols[0].length;
+    return cols.every((c) => c.length === first);
+  }
+
+  /** CSV/TSV 文本转 Markdown 表格 */
+  _csvToMarkdownTable(text) {
+    const lines = text.trim().split(/\r?\n/);
+    const rows = lines.map((l) => (l.includes("\t") ? l.split("\t") : l.split(",")));
+    if (rows.length < 2) return null;
+    const cols = rows[0].length;
+    const header = `| ${rows[0].map((c) => c.trim()).join(" | ")} |`;
+    const sep = `| ${rows[0].map(() => "---").join(" | ")} |`;
+    const body = rows.slice(1).map((r) => `| ${r.map((c) => c.trim()).join(" | ")} |`).join("\n");
+    return `${header}\n${sep}\n${body}`;
+  }
+
+  /** 拖拽处理：检测图片文件 */
+  async _handleDropImage(e) {
+    if (!e.dataTransfer?.files) return;
+    for (const file of e.dataTransfer.files) {
+      if (file.type.startsWith("image/")) {
+        e.preventDefault();
+        await this._saveAndInsertImage(file);
+      }
+    }
+  }
+
+  /** 保存图片并插入 markdown 链接 */
+  async _saveAndInsertImage(file) {
+    const tab = this.tabs.find((t) => t.id === this.activeTabId);
+    if (!tab) return;
+    if (!tab.path) {
+      this._toast("请先保存文件再插入图片");
+      return;
+    }
+    const baseDir = tab.path.replace(/[\\/][^\\/]+$/, "");
+    const ext = (file.name.match(/\.\w+$/) || [".png"])[0];
+    const fileName = `img-${Date.now()}${ext}`;
+    const data = new Uint8Array(await file.arrayBuffer());
+    try {
+      const relPath = await api.saveImage(baseDir, fileName, Array.from(data));
+      if (relPath) {
+        const md = `![${file.name || "图片"}](${relPath})`;
+        this.editor.insertAtCursor(md);
+        tab.dirty = true;
+        document.getElementById("current-file-name").textContent = tab.name + " •";
+        this._renderTabs();
+        this._toast("图片已保存到 assets");
+      }
+    } catch (e) {
+      alert("保存图片失败: " + e);
+    }
+  }
+
+  _initContextMenu() {
+    const menu = document.getElementById("ctx-menu");
+    // 右键唤起
+    document.addEventListener("contextmenu", (e) => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed || !sel.toString().trim()) return;
+      // 仅在编辑区内唤起
+      const ed = document.getElementById("editor");
+      if (!ed.contains(sel.anchorNode)) return;
+      e.preventDefault();
+      menu.style.left = `${e.clientX}px`;
+      menu.style.top = `${e.clientY}px`;
+      menu.classList.remove("hidden");
+    });
+    // 点击菜单项
+    menu.addEventListener("click", (e) => {
+      const item = e.target.closest(".ctx-item");
+      if (!item) return;
+      const action = item.dataset.action;
+      menu.classList.add("hidden");
+      this._doCopy(action);
+    });
+    // 点别处关闭
+    document.addEventListener("click", () => menu.classList.add("hidden"));
+  }
+
+  /** 根据选中内容执行复制 */
+  async _doCopy(action) {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    const text = sel.toString();
+    if (!text.trim()) return;
+
+    if (action === "copy-text") {
+      await this._copyToClipboard(text, text);
+      this._toast("已复制纯文本");
+      return;
+    }
+
+    // 提取选中范围的 HTML
+    const container = document.createElement("div");
+    container.appendChild(range.cloneContents());
+    const html = container.innerHTML;
+
+    if (action === "copy-html") {
+      await this._copyToClipboard(html, text);
+      this._toast("已复制 HTML");
+    } else if (action === "copy-md") {
+      // 从源码中找选中文本对应的 markdown（简化：直接复制选中文本，标称源码）
+      await this._copyToClipboard(text, text);
+      this._toast("已复制 Markdown 源码");
+    }
+  }
+
+  /** 写入剪贴板（富文本 + 纯文本 fallback） */
+  async _copyToClipboard(htmlOrText, plainText) {
+    try {
+      if (navigator.clipboard && window.ClipboardItem) {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            "text/html": new Blob([htmlOrText], { type: "text/html" }),
+            "text/plain": new Blob([plainText], { type: "text/plain" }),
+          }),
+        ]);
+      } else {
+        await navigator.clipboard.writeText(plainText);
+      }
+    } catch {
+      // 回退 execCommand
+      const ta = document.createElement("textarea");
+      ta.value = plainText;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+    }
+  }
+
+  /** 轻量提示 */
+  _toast(msg) {
+    const info = document.getElementById("status-info");
+    const old = info.textContent;
+    info.textContent = msg;
+    setTimeout(() => { info.textContent = old; }, 1500);
   }
 
   _loadInitialContent() {
@@ -520,9 +769,96 @@ class App {
             this.toggleTheme();
           }
           break;
+        case "f":
+          if (e.shiftKey) {
+            e.preventDefault();
+            this.toggleSearch();
+          }
+          break;
       }
     }
   }
+
+  /** 切换全局搜索面板 */
+  toggleSearch() {
+    const panel = document.getElementById("search-panel");
+    const willOpen = panel.classList.contains("hidden");
+    panel.classList.toggle("hidden");
+    if (willOpen) {
+      setTimeout(() => document.getElementById("search-input").focus(), 50);
+    }
+  }
+
+  /** 执行搜索（防抖） */
+  _searchTimer = null;
+  doSearch() {
+    if (this._searchTimer) clearTimeout(this._searchTimer);
+    this._searchTimer = setTimeout(async () => {
+      const input = document.getElementById("search-input");
+      const query = input.value.trim();
+      const useRegex = document.getElementById("search-use-regex").checked;
+      const results = document.getElementById("search-results");
+      if (!query) {
+        results.innerHTML = '<div class="search-empty">输入关键词搜索工作区内所有 Markdown 文件</div>';
+        return;
+      }
+      if (!this.currentDir) {
+        results.innerHTML = '<div class="search-empty">请先选择工作区目录</div>';
+        return;
+      }
+      results.innerHTML = '<div class="search-empty">搜索中...</div>';
+      try {
+        const hits = await api.searchInDir(this.currentDir, query, useRegex);
+        if (hits.length === 0) {
+          results.innerHTML = '<div class="search-empty">未找到匹配项</div>';
+          return;
+        }
+        results.innerHTML = "";
+        const lq = query.toLowerCase();
+        for (const hit of hits) {
+          const item = document.createElement("div");
+          item.className = "search-result-item";
+          // 高亮匹配
+          let hl = hit.text;
+          if (!useRegex) {
+            const idx = hl.toLowerCase().indexOf(lq);
+            if (idx >= 0) {
+              hl = escapeHtml(hl.slice(0, idx)) +
+                "<mark>" + escapeHtml(hl.slice(idx, idx + query.length)) + "</mark>" +
+                escapeHtml(hl.slice(idx + query.length));
+            } else {
+              hl = escapeHtml(hl);
+            }
+          } else {
+            hl = escapeHtml(hl);
+          }
+          item.innerHTML = `<div class="search-result-file">${escapeHtml(hit.name)}:${hit.line}</div><div class="search-result-line">${hl}</div>`;
+          item.addEventListener("click", () => this._openSearchHit(hit));
+          results.appendChild(item);
+        }
+        results.innerHTML += `<div class="search-empty">${hits.length} 项匹配</div>`;
+      } catch (e) {
+        results.innerHTML = `<div class="search-empty">搜索失败: ${escapeHtml(String(e))}</div>`;
+      }
+    }, 300);
+  }
+
+  /** 点击搜索结果打开文件 */
+  async _openSearchHit(hit) {
+    try {
+      const content = await api.readFile(hit.path);
+      this.newTab(content, hit.name, hit.path);
+      // 关闭搜索面板
+      document.getElementById("search-panel").classList.add("hidden");
+      // TODO: 跳转到具体行（当前整体渲染不支持行号定位）
+    } catch (e) {
+      alert("打开失败: " + e);
+    }
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 // 启动

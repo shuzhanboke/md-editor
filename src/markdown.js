@@ -1,8 +1,11 @@
 // Markdown 解析与即时渲染
-// 基于 marked v14，扩展：代码高亮、Mermaid、数学公式占位、任务列表
+// 基于 marked v14，扩展：代码高亮、Mermaid、数学公式占位、任务列表、脚注
 
 import { marked } from "marked";
+import markedFootnote from "marked-footnote";
 import hljs from "highlight.js";
+
+marked.use(markedFootnote());
 
 const renderer = new marked.Renderer();
 

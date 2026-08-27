@@ -29,6 +29,7 @@
         <button id="btn-theme" title="切换主题">🎨</button>
         <button id="btn-outline" title="大纲">☰</button>
         <button id="btn-sidebar" title="侧边栏">📑</button>
+        <button id="btn-customcss" title="自定义 CSS">⚙</button>
       </div>
     </div>
 
@@ -55,6 +56,38 @@
           <span>大纲</span>
         </div>
         <div id="outline-list"></div>
+      </div>
+    </div>
+
+    <!-- 右键上下文菜单 -->
+    <div id="ctx-menu" class="ctx-menu hidden">
+      <div class="ctx-item" data-action="copy-html">复制为 HTML</div>
+      <div class="ctx-item" data-action="copy-text">复制为纯文本</div>
+      <div class="ctx-item" data-action="copy-md">复制 Markdown 源码</div>
+    </div>
+
+    <!-- 全局搜索面板 -->
+    <div id="search-panel" class="search-panel hidden">
+      <div class="search-header">
+        <input type="text" id="search-input" placeholder="在工作区搜索内容（支持正则）..." />
+        <label class="search-regex"><input type="checkbox" id="search-use-regex" /> 正则</label>
+        <button id="search-close" class="search-close">✕</button>
+      </div>
+      <div class="search-results" id="search-results"></div>
+    </div>
+
+    <!-- 自定义 CSS 弹窗 -->
+    <div id="css-modal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <span>自定义 CSS（覆盖默认渲染样式）</span>
+          <button id="css-close" class="search-close">✕</button>
+        </div>
+        <textarea id="css-editor" class="css-textarea" placeholder="#editor h1 { color: red; }&#10;#editor p { font-size: 18px; }" spellcheck="false"></textarea>
+        <div class="modal-footer">
+          <button id="css-reset" class="modal-btn">重置</button>
+          <button id="css-apply" class="modal-btn primary">应用</button>
+        </div>
       </div>
     </div>
 

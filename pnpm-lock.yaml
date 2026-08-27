@@ -20,6 +20,9 @@ importers:
       marked:
         specifier: ^14.1.4
         version: 14.1.4
+      marked-footnote:
+        specifier: ^1.4.0
+        version: 1.4.0(marked@14.1.4)
       mermaid:
         specifier: ^11.4.1
         version: 11.17.1
@@ -763,6 +766,11 @@ packages:
   lodash-es@4.18.1:
     resolution: {integrity: sha512-J8xewKD/Gk22OZbhpOVSwcs60zhd95ESDwezOFuA3/099925PdHJ7OFHNTGtajL3AlZkykD32HykiMo+BIBI8A==}
 
+  marked-footnote@1.4.0:
+    resolution: {integrity: sha512-fZTxAhI1TcLEs5UOjCfYfTHpyKGaWQevbxaGTEA68B51l7i87SctPFtHETYqPkEN0ka5opvy4Dy1l/yXVC+hmg==}
+    peerDependencies:
+      marked: '>=7.0.0'
+
   marked@14.1.4:
     resolution: {integrity: sha512-vkVZ8ONmUdPnjCKc5uTRvmkRbx4EAi2OkTOXmfTDhZz3OFqMNBM1oTTWwTr4HY4uAEojhzPf+Fy8F1DWa3Sndg==}
     engines: {node: '>= 18'}
@@ -1501,6 +1509,10 @@ snapshots:
   layout-base@2.0.1: {}
 
   lodash-es@4.18.1: {}
+
+  marked-footnote@1.4.0(marked@14.1.4):
+    dependencies:
+      marked: 14.1.4
 
   marked@14.1.4: {}
 

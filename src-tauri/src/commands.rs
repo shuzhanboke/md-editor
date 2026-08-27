@@ -151,3 +151,105 @@ pub async fn pick_directory(app: tauri::AppHandle) -> Result<Option<String>, Str
     rx.recv()
         .map_err(|e| format!("对话框错误: {}", e))
 }
+
+/// 递归在工作区目录内搜索包含关键字的文件，返回匹配结果
+#[tauri::command]
+pub fn search_in_dir(
+    dir: String,
+    query: String,
+    use_regex: Option<bool>,
+) -> Result<Vec<SearchHit>, String> {
+    let query = query.trim();
+    if query.is_empty() {
+        return Ok(Vec::new());
+    }
+    let use_re = use_regex.unwrap_or(false);
+    let re = if use_re {
+        Some(regex::Regex::new(query).map_err(|e| format!("正则错误: {}", e))?)
+    } else {
+        None
+    };
+    let mut hits = Vec::new();
+    search_recursive(&dir, query, re.as_ref(), &mut hits, 0)?;
+    // 限制结果数量
+    hits.truncate(200);
+    Ok(hits)
+}
+
+#[derive(serde::Serialize, Clone)]
+pub struct SearchHit {
+    pub path: String,
+    pub name: String,
+    pub line: usize,
+    pub text: String,
+}
+
+fn search_recursive(
+    dir: &str,
+    query: &str,
+    re: Option<&regex::Regex>,
+    hits: &mut Vec<SearchHit>,
+    depth: usize,
+) -> Result<(), String> {
+    if depth > 5 || hits.len() >= 200 {
+        return Ok(());
+    }
+    let entries = fs::read_dir(dir).map_err(|e| format!("读取目录失败: {}", e))?;
+    for entry in entries {
+        let entry = match entry {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.starts_with('.') || name.eq_ignore_ascii_case("node_modules") || name.eq_ignore_ascii_case("target") {
+            continue;
+        }
+        let path = entry.path();
+        let ft = entry.file_type();
+        let is_dir = ft.map(|t| t.is_dir()).unwrap_or(false);
+        if is_dir {
+            search_recursive(path.to_str().unwrap_or(""), query, re, hits, depth + 1)?;
+        } else if is_md_file(&name) {
+            if let Ok(content) = fs::read_to_string(&path) {
+                let lq = query.to_lowercase();
+                for (i, line) in content.lines().enumerate() {
+                    let matched = match re {
+                        Some(r) => r.is_match(line),
+                        None => line.to_lowercase().contains(&lq),
+                    };
+                    if matched {
+                        hits.push(SearchHit {
+                            path: path.to_string_lossy().to_string(),
+                            name: name.clone(),
+                            line: i + 1,
+                            text: line.chars().take(200).collect(),
+                        });
+                        if hits.len() >= 200 {
+                            return Ok(());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn is_md_file(name: &str) -> bool {
+    let lower = name.to_lowercase();
+    lower.ends_with(".md") || lower.ends_with(".markdown") || lower.ends_with(".txt")
+}
+
+/// 保存图片到指定目录，返回保存后的相对路径
+#[tauri::command]
+pub fn save_image(
+    base_dir: String,
+    file_name: String,
+    data: Vec<u8>,
+) -> Result<String, String> {
+    let assets_dir = format!("{}/assets", base_dir.trim_end_matches(['/', '\\']));
+    fs::create_dir_all(&assets_dir).map_err(|e| format!("创建 assets 目录失败: {}", e))?;
+    let path = format!("{}/{}", assets_dir, file_name);
+    fs::write(&path, &data).map_err(|e| format!("保存图片失败: {}", e))?;
+    Ok(format!("assets/{}", file_name))
+}

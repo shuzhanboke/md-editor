@@ -71,6 +71,18 @@ export async function pickDirectory() {
   return cmd("pick_directory");
 }
 
+/** 在工作区目录递归搜索内容，返回匹配结果 */
+export async function searchInDir(dir, query, useRegex = false) {
+  if (!isTauri) return [];
+  return cmd("search_in_dir", { dir, query, useRegex });
+}
+
+/** 保存图片到指定目录的 assets 子目录，返回相对路径 */
+export async function saveImage(baseDir, fileName, data) {
+  if (!isTauri) return null;
+  return cmd("save_image", { baseDir, fileName, data });
+}
+
 /** 设置窗口标题 */
 export async function setWindowTitle(title) {
   if (!isTauri) return;

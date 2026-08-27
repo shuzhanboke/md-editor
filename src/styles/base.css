@@ -152,3 +152,182 @@ html, body {
 #editor:focus {
   outline: none;
 }
+
+/* ============ 右键上下文菜单 ============ */
+.ctx-menu {
+  position: fixed;
+  z-index: 9999;
+  min-width: 160px;
+  background: var(--sidebar-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+  padding: 4px 0;
+  user-select: none;
+}
+.ctx-menu.hidden { display: none; }
+.ctx-item {
+  padding: 7px 16px;
+  font-size: 13px;
+  color: var(--text-color);
+  cursor: pointer;
+}
+.ctx-item:hover {
+  background: var(--hover-bg);
+}
+
+/* ============ 全局搜索面板 ============ */
+.search-panel {
+  position: fixed;
+  top: var(--titlebar-height);
+  right: 0;
+  width: 420px;
+  height: calc(100vh - var(--titlebar-height) - var(--statusbar-height));
+  background: var(--sidebar-bg);
+  border-left: 1px solid var(--border-color);
+  box-shadow: -4px 0 14px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+}
+.search-panel.hidden { display: none; }
+.search-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border-bottom: 1px solid var(--border-color);
+}
+#search-input {
+  flex: 1;
+  padding: 7px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  background: var(--bg-content);
+  color: var(--text-color);
+  font-size: 13px;
+  outline: none;
+}
+#search-input:focus { border-color: var(--accent-color); }
+.search-regex {
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+.search-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 15px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.search-close:hover { background: var(--hover-bg); }
+.search-results {
+  flex: 1;
+  overflow: auto;
+  padding: 4px 0;
+}
+.search-result-item {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+}
+.search-result-item:hover { background: var(--hover-bg); }
+.search-result-file {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-color);
+  margin-bottom: 2px;
+}
+.search-result-line {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.search-result-line mark {
+  background: var(--mark-bg);
+  color: inherit;
+  border-radius: 2px;
+}
+.search-empty {
+  padding: 24px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* ============ 模态弹窗 ============ */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+.modal.hidden { display: none; }
+.modal-content {
+  background: var(--bg-content);
+  border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+  width: 560px;
+  max-width: 90vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 14px;
+  font-weight: 600;
+}
+.css-textarea {
+  flex: 1;
+  min-height: 240px;
+  margin: 12px 16px;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--code-bg);
+  color: var(--text-color);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+}
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-color);
+}
+.modal-btn {
+  padding: 6px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  background: var(--bg-content);
+  color: var(--text-color);
+  cursor: pointer;
+  font-size: 13px;
+}
+.modal-btn:hover { background: var(--hover-bg); }
+.modal-btn.primary {
+  background: var(--accent-color);
+  color: #fff;
+  border-color: var(--accent-color);
+}

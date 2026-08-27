@@ -17,6 +17,8 @@ const cases = [
   { name: "图片", md: "![alt](img.png)", check: h => h.includes("<img") && h.includes('alt="alt"') },
   { name: "水平线", md: "---", check: h => h.includes("<hr") },
   { name: "标题2-6级", md: "## 二\n### 三\n#### 四", check: h => h.includes("<h2") && h.includes("<h3") && h.includes("<h4") },
+  { name: "脚注", md: "正文有脚注[^1]。\n\n[^1]: 脚注内容", check: h => h.includes("footnote") || h.includes("footnotes") },
+  { name: "脚注引用", md: "见[^x]。\n\n[^x]: 解释", check: h => h.includes("[^x]") === false && (h.includes("footnote") || h.includes('id="fn')) },
 ];
 
 let pass = 0, fail = 0;
