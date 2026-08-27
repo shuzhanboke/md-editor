@@ -92,3 +92,67 @@
 .outline-item.h4 { padding-left: 60px; font-size: 12px; color: var(--text-secondary); }
 .outline-item.h5 { padding-left: 76px; font-size: 12px; color: var(--text-secondary); }
 .outline-item.h6 { padding-left: 92px; font-size: 12px; color: var(--text-secondary); }
+
+/* ============ 选择目录引导 ============ */
+.tree-guide {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 40px 16px;
+  gap: 10px;
+}
+.tree-guide .guide-icon { font-size: 32px; opacity: 0.6; }
+.tree-guide .guide-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.tree-guide .guide-btn {
+  margin-top: 8px;
+  padding: 6px 16px;
+  background: var(--accent-color);
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: opacity 0.18s;
+}
+.tree-guide .guide-btn:hover { opacity: 0.85; }
+
+/* ============ 目录头 + 更换按钮 ============ */
+.tree-root-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-color);
+  border-bottom: 1px solid var(--border-color);
+  background: var(--sidebar-bg);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.tree-root-header .tree-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tree-root-header .tree-change-dir {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
+  color: var(--text-secondary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1;
+}
+.tree-root-header .tree-change-dir:hover {
+  background: var(--hover-bg);
+  color: var(--text-color);
+}

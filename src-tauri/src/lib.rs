@@ -53,6 +53,7 @@ pub fn run() {
             commands::open_file_dialog,
             commands::save_file_dialog,
             commands::set_window_title,
+            commands::pick_directory,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

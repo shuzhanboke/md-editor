@@ -65,6 +65,12 @@ export async function saveFile(defaultName = "未命名.md") {
   return cmd("save_file_dialog", { defaultName });
 }
 
+/** 选择文件夹（工作区目录），返回选中目录路径 */
+export async function pickDirectory() {
+  if (!isTauri) return null;
+  return cmd("pick_directory");
+}
+
 /** 设置窗口标题 */
 export async function setWindowTitle(title) {
   if (!isTauri) return;

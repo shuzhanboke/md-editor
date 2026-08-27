@@ -125,16 +125,37 @@ class App {
   }
 
   async _initSidebar() {
-    if (api.env.isTauri) {
-      try {
-        // 优先用记忆的上次目录，否则用默认目录
-        const dir = this.currentDir || await api.getDefaultDir();
-        this.currentDir = dir;
-        await this._refreshFileTree(dir);
-      } catch (e) {
-        console.warn("初始化侧边栏失败:", e);
-      }
+    // 有记忆目录则显示文件树，否则显示选择目录引导（无论是否 Tauri）
+    const dir = this.currentDir;
+    if (dir) {
+      await this._refreshFileTree(dir);
+    } else {
+      this._showPickDirGuide();
     }
+  }
+
+  /** 显示选择目录引导 */
+  _showPickDirGuide() {
+    const tree = document.getElementById("file-tree");
+    tree.innerHTML = "";
+    const guide = document.createElement("div");
+    guide.className = "tree-guide";
+    guide.innerHTML = `
+      <div class="guide-icon">📂</div>
+      <div class="guide-text">尚未选择工作区目录</div>
+      <button class="guide-btn" id="guide-pick-dir">选择文件夹</button>
+    `;
+    tree.appendChild(guide);
+    document.getElementById("guide-pick-dir").addEventListener("click", () => this.pickWorkspaceDir());
+  }
+
+  /** 选择 Windows 工作区目录 */
+  async pickWorkspaceDir() {
+    const dir = await api.pickDirectory();
+    if (!dir) return;
+    this.currentDir = dir;
+    localStorage.setItem("md-lastdir", dir);
+    await this._refreshFileTree(dir);
   }
 
   async _refreshFileTree(dir) {
@@ -142,13 +163,22 @@ class App {
     try {
       const entries = await api.listDir(dir);
       tree.innerHTML = "";
-      const root = document.createElement("div");
-      root.className = "tree-item";
-      root.innerHTML = `<span class="tree-icon">📁</span><span class="tree-name">${this._baseName(dir)}</span>`;
-      tree.appendChild(root);
+      // 顶部：目录名 + "更换目录"按钮
+      const header = document.createElement("div");
+      header.className = "tree-root-header";
+      header.innerHTML = `
+        <span class="tree-icon">📁</span>
+        <span class="tree-name" title="${dir}">${this._baseName(dir)}</span>
+        <button class="tree-change-dir" title="更换目录">⟳</button>
+      `;
+      header.querySelector(".tree-change-dir").addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.pickWorkspaceDir();
+      });
+      tree.appendChild(header);
       this._renderTreeChildren(entries, tree, 1);
     } catch (e) {
-      tree.innerHTML = `<div class="tree-item">无法读取目录</div>`;
+      tree.innerHTML = `<div class="tree-item">无法读取目录: ${e}</div>`;
     }
   }
 

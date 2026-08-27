@@ -137,3 +137,17 @@ pub fn set_window_title(app: tauri::AppHandle, title: String) -> Result<(), Stri
     }
     Ok(())
 }
+
+/// 弹出文件夹选择对话框，返回选中目录路径
+#[tauri::command]
+pub async fn pick_directory(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    let (tx, rx) = std::sync::mpsc::channel();
+    app.dialog()
+        .file()
+        .pick_folder(move |path| {
+            let result = path.map(|p| p.to_string());
+            let _ = tx.send(result);
+        });
+    rx.recv()
+        .map_err(|e| format!("对话框错误: {}", e))
+}
