@@ -1318,6 +1318,24 @@ class App {
   /** 全局快捷键 */
   _onGlobalKey(e) {
     if (e.ctrlKey || e.metaKey) {
+      // 格式快捷键（需编辑区有焦点）
+      const edFocused = document.getElementById("editor").contains(document.activeElement) || document.activeElement.id === "editor";
+      if (edFocused && !e.shiftKey) {
+        switch (e.key.toLowerCase()) {
+          case "b":
+            e.preventDefault();
+            this._insertFormat("bold");
+            return;
+          case "i":
+            e.preventDefault();
+            this._insertFormat("italic");
+            return;
+          case "k":
+            e.preventDefault();
+            this._insertFormat("link");
+            return;
+        }
+      }
       switch (e.key.toLowerCase()) {
         case "n":
           e.preventDefault();

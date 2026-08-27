@@ -215,6 +215,18 @@
   border-radius: 6px;
 }
 
+/* 块级编辑态：单块显示源码 */
+#editor .block-editing {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  background: var(--code-bg);
+  border-radius: 4px;
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
 /* ============ 脚注 ============ */
 #editor .footnotes {
   margin-top: 2em;
