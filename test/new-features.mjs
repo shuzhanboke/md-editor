@@ -33,12 +33,12 @@ try {
   else bad("右键复制菜单", "无");
 } catch (e) { bad("右键复制菜单", e.message.slice(0, 80)); }
 
-// 3. 复制菜单项数量
+// 3. 右键菜单项数量（格式项 + 复制项）
 try {
   const items = await page.locator("#ctx-menu .ctx-item").count();
-  if (items === 3) ok("复制菜单 3 项（HTML/纯文本/源码）");
-  else bad("复制菜单项", `仅 ${items} 项`);
-} catch (e) { bad("复制菜单项", e.message.slice(0, 80)); }
+  if (items >= 14) ok(`右键菜单 ${items} 项（格式 + 复制）`);
+  else bad("右键菜单项", `仅 ${items} 项`);
+} catch (e) { bad("右键菜单项", e.message.slice(0, 80)); }
 
 // 4. 搜索面板 DOM + 快捷键
 try {

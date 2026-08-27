@@ -184,58 +184,161 @@ class App {
       const fmt = btn.dataset.fmt;
       this._insertFormat(fmt);
     });
+
+    // 工具栏记忆
+    if (localStorage.getItem("md-toolbar") === "collapsed") {
+      toolbar.classList.add("collapsed");
+      expand.style.display = "block";
+    }
+    // 工具栏状态保存
+    new MutationObserver(() => {
+      localStorage.setItem("md-toolbar", toolbar.classList.contains("collapsed") ? "collapsed" : "open");
+    }).observe(toolbar, { attributes: true, attributeFilter: ["class"] });
   }
 
   /** 插入格式 markdown */
   _insertFormat(fmt) {
-    const mdMap = {
-      bold: "**", italic: "*", strike: "~~", code: "`",
+    // 如果当前不在编辑态，先进入编辑态（保存当前选中文本以便后续包裹）
+    let selectedText = "";
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount && !sel.isCollapsed) {
+      selectedText = sel.toString();
+    }
+    if (!this.editor.editing) {
+      this.editor._enterEdit();
+      // 进入编辑态后，光标在末尾；如果有选中文本，尝试在源码中定位并选中
+      if (selectedText) {
+        this._selectInEditor(selectedText);
+      }
+    }
+
+    // 包裹型格式
+    const wrapMap = {
+      bold: ["**", "**"], italic: ["*", "*"], strike: ["~~", "~~"], code: ["`", "`"],
+      link: ["[", "](url)"],
+    };
+    if (fmt in wrapMap) {
+      const [before, after] = wrapMap[fmt];
+      this._wrapInEditor(before, after, selectedText);
+      return;
+    }
+
+    // 行首型格式
+    const lineMap = {
       h1: "# ", h2: "## ", h3: "### ", h4: "#### ",
       ul: "- ", ol: "1. ", task: "- [ ] ", quote: "> ",
-      hr: "\n---\n",
-      codeblock: "```js\n\n```",
-      math: "$$\n\n$$",
-      mermaid: "```mermaid\ngraph TD\n  A-->B\n```",
     };
-    if (fmt in mdMap) {
-      const prefix = mdMap[fmt];
-      // 行级格式（标题/列表/引用）：在行首插入
-      if (/^(h\d|ul|ol|task|quote)/.test(fmt)) {
-        this.editor.insertAtCursor(prefix);
-      } else if (fmt === "hr" || fmt === "codeblock" || fmt === "math" || fmt === "mermaid") {
-        this.editor.insertAtCursor(prefix);
-      } else {
-        // 包裹格式（加粗/斜体等）：包裹选中文本或插入占位
-        this._wrapSelection(prefix, prefix);
-      }
-    } else if (fmt === "link") {
-      this._wrapSelection("[", "](url)");
-    } else if (fmt === "image") {
-      this.editor.insertAtCursor("![描述](url)");
-    } else if (fmt === "table") {
-      this.editor.insertAtCursor("\n| 列1 | 列2 |\n|---|---|\n| 内容 | 内容 |\n");
+    if (fmt in lineMap) {
+      this._insertAtLineStart(lineMap[fmt]);
+      return;
+    }
+
+    // 插入型格式
+    const insertMap = {
+      hr: "\n---\n",
+      image: "![描述](url)",
+      table: "\n| 列1 | 列2 |\n|---|---|\n| 内容 | 内容 |\n",
+      codeblock: "\n```js\n\n```\n",
+      math: "\n$$\n\n$$\n",
+      mermaid: "\n```mermaid\ngraph TD\n  A-->B\n```\n",
+    };
+    if (fmt in insertMap) {
+      this.editor.insertAtCursor(insertMap[fmt]);
     }
   }
 
-  /** 包裹选中文本 */
-  _wrapSelection(before, after) {
+  /** 在编辑态源码中查找选中文本并选中 */
+  _selectInEditor(text) {
+    const ed = this.editor.root;
+    const fullText = ed.textContent;
+    const idx = fullText.indexOf(text);
+    if (idx >= 0) {
+      const textNode = ed.firstChild;
+      if (textNode && textNode.nodeType === Node.TEXT_NODE) {
+        const range = document.createRange();
+        range.setStart(textNode, idx);
+        range.setEnd(textNode, idx + text.length);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+    }
+  }
+
+  /** 在编辑态包裹选中文本 */
+  _wrapInEditor(before, after, fallbackText) {
     const sel = window.getSelection();
-    if (sel && sel.rangeCount && !sel.isCollapsed) {
+    const ed = this.editor.root;
+    if (sel && sel.rangeCount && !sel.isCollapsed && ed.contains(sel.anchorNode)) {
       const range = sel.getRangeAt(0);
       const text = sel.toString();
       range.deleteContents();
       const node = document.createTextNode(before + text + after);
       range.insertNode(node);
-      range.collapse(false);
+      // 选中包裹后的原文部分（不含标记）
+      const newRange = document.createRange();
+      newRange.setStart(node, before.length);
+      newRange.setEnd(node, before.length + text.length);
       sel.removeAllRanges();
-      sel.addRange(range);
-      if (this.editor.editing) {
-        this.editor.source = this.editor.root.textContent;
-        this.editor.onChange(this.editor.source, true);
-      }
+      sel.addRange(newRange);
+      this.editor.source = ed.textContent;
+      this.editor.onChange(this.editor.source, true);
     } else {
-      this.editor.insertAtCursor(before + (after.startsWith("]") ? "描述" : "") + after);
+      // 无选中文本：插入占位并选中占位词
+      const placeholder = fallbackText || (after.startsWith("]") ? "描述" : "文本");
+      this.editor.insertAtCursor(before + placeholder + after);
+      // 选中占位词
+      const r2 = window.getSelection();
+      if (r2 && r2.rangeCount) {
+        const textNode = ed.firstChild;
+        if (textNode && textNode.nodeType === Node.TEXT_NODE) {
+          const full = ed.textContent;
+          const pi = full.lastIndexOf(placeholder);
+          if (pi >= 0) {
+            const nr = document.createRange();
+            nr.setStart(textNode, pi);
+            nr.setEnd(textNode, pi + placeholder.length);
+            r2.removeAllRanges();
+            r2.addRange(nr);
+          }
+        }
+      }
     }
+  }
+
+  /** 在当前行首插入前缀 */
+  _insertAtLineStart(prefix) {
+    const ed = this.editor.root;
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount) {
+      this.editor.insertAtCursor(prefix);
+      return;
+    }
+    const range = sel.getRangeAt(0);
+    // 找到当前行起始位置
+    const textNode = ed.firstChild;
+    if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
+      this.editor.insertAtCursor(prefix);
+      return;
+    }
+    const cursorOffset = range.startOffset;
+    const fullText = textNode.textContent;
+    // 向前找换行符
+    let lineStart = fullText.lastIndexOf("\n", cursorOffset - 1);
+    lineStart = lineStart < 0 ? 0 : lineStart + 1;
+    // 在行首插入 prefix
+    const newRange = document.createRange();
+    newRange.setStart(textNode, lineStart);
+    newRange.setEnd(textNode, lineStart);
+    newRange.insertNode(document.createTextNode(prefix));
+    // 光标移到 prefix 后
+    const afterOffset = lineStart + prefix.length;
+    newRange.setStart(textNode, afterOffset);
+    newRange.setEnd(textNode, afterOffset);
+    sel.removeAllRanges();
+    sel.addRange(newRange);
+    this.editor.source = ed.textContent;
+    this.editor.onChange(this.editor.source, true);
   }
 
   /** 切换 Git 面板 */
@@ -254,14 +357,14 @@ class App {
     }
     try {
       const branch = await api.gitBranch(this.currentDir);
-      document.getElementById("git-branch").textContent = `分支: ${branch || "-(非 git 仓库)"}`;
+      document.getElementById("git-branch").textContent = `分支: ${branch || "main"}`;
       // 加载 remote URL
       const remote = await api.gitGetRemote(this.currentDir);
       document.getElementById("git-remote-url").value = remote || localStorage.getItem("md-git-remote") || "";
     } catch (e) {
-      document.getElementById("git-branch").textContent = "分支: -(非 git 仓库)";
-      document.getElementById("git-files").innerHTML = `<div class="search-empty">${escapeHtml(String(e))}</div>`;
-      // 仍填充记忆的 remote
+      // 非 git 仓库：显示引导初始化
+      document.getElementById("git-branch").textContent = '分支: 未初始化（点击下方「初始化」按钮）';
+      document.getElementById("git-files").innerHTML = `<div class="search-empty">该目录尚未初始化 Git 仓库<br>请在下方"仓库配置"区域点击"初始化"按钮</div>`;
       document.getElementById("git-remote-url").value = localStorage.getItem("md-git-remote") || "";
       return;
     }
@@ -672,7 +775,12 @@ class App {
       if (!item) return;
       const action = item.dataset.action;
       menu.classList.add("hidden");
-      this._doCopy(action);
+      if (action && action.startsWith("fmt-")) {
+        const fmt = action.slice(4);
+        this._insertFormat(fmt);
+      } else {
+        this._doCopy(action);
+      }
     });
     // 点别处关闭
     document.addEventListener("click", () => menu.classList.add("hidden"));

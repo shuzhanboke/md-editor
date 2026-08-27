@@ -253,6 +253,19 @@ html, body {
 .ctx-item:hover {
   background: var(--hover-bg);
 }
+.ctx-group-title {
+  padding: 4px 16px 2px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.ctx-sep {
+  height: 1px;
+  margin: 4px 8px;
+  background: var(--border-color);
+}
 
 /* ============ 全局搜索面板 ============ */
 .search-panel {
