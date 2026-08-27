@@ -18,6 +18,7 @@ export class Editor {
     this.source = "";
     this.editing = false; // 是否处于源码编辑态
     this.suppress = false;
+    this.vimMode = "normal"; // Vim 模式：normal / insert
     this._renderTimer = null;
 
     this._bind();
@@ -67,6 +68,7 @@ export class Editor {
   /** 进入编辑态：显示纯文本 source */
   _enterEdit(evt) {
     this.editing = true;
+    this.vimMode = "normal";
     this.root.textContent = this.source;
     // 标记编辑态，便于样式区分
     this.root.classList.add("editing-mode");
@@ -78,10 +80,11 @@ export class Editor {
   /** 提交编辑：回到渲染态 */
   commitEditing() {
     if (!this.editing) return;
-    // 读取编辑后的源码
     this.source = this.root.textContent;
     this.editing = false;
-    this.root.classList.remove("editing-mode");
+    this.vimMode = "normal";
+    this.root.classList.remove("editing-mode", "vim-insert");
+    this._vimStatus(null);
     this._render();
     this.onChange(this.source, false);
   }
@@ -98,8 +101,15 @@ export class Editor {
   /** 键盘处理 */
   _onKeydown(e) {
     if (!this.editing) return;
-    // ESC：退出编辑态
+    // ESC：退出编辑态（或 Vim 从 insert 回 normal）
     if (e.key === "Escape") {
+      if (this.vimMode === "insert") {
+        this.vimMode = "normal";
+        this.root.classList.remove("vim-insert");
+        this._vimStatus("NORMAL");
+        e.preventDefault();
+        return;
+      }
       e.preventDefault();
       this.commitEditing();
       return;
@@ -109,6 +119,83 @@ export class Editor {
       this._insertText("  ");
       return;
     }
+    // Vim 模式
+    if (this.vimMode === "normal") {
+      this._handleVimNormal(e);
+      return;
+    }
+  }
+
+  /** Vim normal 模式键位 */
+  _handleVimNormal(e) {
+    const k = e.key;
+    const handled = ["h", "j", "k", "l", "i", "a", "o", "O", "x", "0", "$", "w", "b", "G", "g", ":", "d", "u", "e"];
+    if (!handled.includes(k) && k !== "Enter" && k !== "Backspace") return;
+    e.preventDefault();
+    const sel = window.getSelection();
+    if (k === "i") { this.vimMode = "insert"; this.root.classList.add("vim-insert"); this._vimStatus("INSERT"); }
+    else if (k === "a") { this._moveCursor("right"); this.vimMode = "insert"; this.root.classList.add("vim-insert"); this._vimStatus("INSERT"); }
+    else if (k === "o") { this._insertText("\n"); this.vimMode = "insert"; this._vimStatus("INSERT"); }
+    else if (k === "h") this._moveCursor("left");
+    else if (k === "l") this._moveCursor("right");
+    else if (k === "j") this._moveCursor("down");
+    else if (k === "k") this._moveCursor("up");
+    else if (k === "0") this._moveCursor("line-start");
+    else if (k === "$") this._moveCursor("line-end");
+    else if (k === "w") this._moveCursor("word-forward");
+    else if (k === "b") this._moveCursor("word-back");
+    else if (k === "G") this._moveCursor("doc-end");
+    else if (k === "x") this._deleteChar();
+    else if (k === ":") this._vimCommand();
+    else if (k === "u") document.execCommand("undo");
+  }
+
+  /** 移动光标 */
+  _moveCursor(dir) {
+    const sel = window.getSelection();
+    if (!sel.modify) return;
+    const map = { left: "backward", right: "forward", up: "up", down: "down" };
+    if (map[dir]) sel.modify("move", map[dir], "character");
+    else if (dir === "line-start" || dir === "line-end") sel.modify("move", dir === "line-start" ? "backward" : "forward", "lineboundary");
+    else if (dir === "word-forward") sel.modify("move", "forward", "word");
+    else if (dir === "word-back") sel.modify("move", "backward", "word");
+    else if (dir === "doc-end") { const r = document.createRange(); r.selectNodeContents(this.root); r.collapse(false); sel.removeAllRanges(); sel.addRange(r); }
+  }
+
+  /** 删除当前字符 */
+  _deleteChar() {
+    const sel = window.getSelection();
+    if (sel.rangeCount) {
+      const r = sel.getRangeAt(0);
+      r.deleteContents();
+      try { r.setEnd(r.endContainer, r.endOffset + 1); } catch {}
+      r.deleteContents();
+      this.source = this.root.textContent;
+      this.onChange(this.source, true);
+    }
+  }
+
+  /** Vim 命令（:w :q 等） */
+  _vimCommand() {
+    // 简化：用 prompt 接收命令
+    const cmd = prompt("Vim 命令 (w=保存 q=退出 wq=保存退出)");
+    if (!cmd) return;
+    if (cmd.includes("w")) this.onChange(this.source, true); // 触发保存逻辑
+    if (cmd.includes("q")) { this.vimMode = "normal"; this.commitEditing(); }
+    this._vimStatus("NORMAL");
+  }
+
+  /** Vim 状态提示 */
+  _vimStatus(mode) {
+    let el = document.getElementById("vim-status");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "vim-status";
+      el.style.cssText = "position:fixed;bottom:var(--statusbar-height);right:8px;background:var(--accent-color);color:#fff;padding:2px 10px;font-size:12px;font-weight:600;border-radius:4px 4px 0 0;z-index:999";
+      document.body.appendChild(el);
+    }
+    el.textContent = `-- ${mode} --`;
+    el.style.display = mode ? "block" : "none";
   }
 
   /** 插入文本到光标处 */

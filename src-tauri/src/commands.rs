@@ -253,3 +253,192 @@ pub fn save_image(
     fs::write(&path, &data).map_err(|e| format!("保存图片失败: {}", e))?;
     Ok(format!("assets/{}", file_name))
 }
+
+// ============ Git 集成 ============
+
+/// 获取工作区 git 状态，返回文件变更列表
+#[tauri::command]
+pub fn git_status(dir: String) -> Result<Vec<GitFileStatus>, String> {
+    let output = run_git(&dir, &["status", "--porcelain=v1"])?;
+    let mut files = Vec::new();
+    for line in output.lines() {
+        if line.len() < 3 {
+            continue;
+        }
+        let status = &line[..2];
+        let path = line[3..].trim().to_string();
+        let kind = if status.contains('?') {
+            "untracked".to_string()
+        } else if status.contains('M') {
+            "modified".to_string()
+        } else if status.contains('A') {
+            "added".to_string()
+        } else if status.contains('D') {
+            "deleted".to_string()
+        } else {
+            "changed".to_string()
+        };
+        files.push(GitFileStatus { path, status: kind });
+    }
+    Ok(files)
+}
+
+#[derive(serde::Serialize)]
+pub struct GitFileStatus {
+    pub path: String,
+    pub status: String,
+}
+
+/// git add（暂存文件）
+#[tauri::command]
+pub fn git_add(dir: String, paths: Vec<String>) -> Result<(), String> {
+    let mut args: Vec<&str> = vec!["add"];
+    let owned: Vec<String> = paths;
+    let refs: Vec<&str> = owned.iter().map(|s| s.as_str()).collect();
+    args.extend(refs);
+    run_git(&dir, &args)?;
+    Ok(())
+}
+
+/// git commit
+#[tauri::command]
+pub fn git_commit(dir: String, message: String) -> Result<String, String> {
+    let output = run_git(&dir, &["commit", "-m", &message])?;
+    Ok(output)
+}
+
+/// git push
+#[tauri::command]
+pub fn git_push(dir: String) -> Result<String, String> {
+    let output = run_git(&dir, &["push"])?;
+    Ok(output)
+}
+
+/// 当前分支名
+#[tauri::command]
+pub fn git_branch(dir: String) -> Result<String, String> {
+    let output = run_git(&dir, &["rev-parse", "--abbrev-ref", "HEAD"])?;
+    Ok(output.trim().to_string())
+}
+
+/// 最近提交历史
+#[tauri::command]
+pub fn git_log(dir: String, count: Option<usize>) -> Result<Vec<GitCommit>, String> {
+    let n = count.unwrap_or(20).to_string();
+    let output = run_git(&dir, &["log", &format!("--pretty=format:%H|%an|%ad|%s"), &format!("-{}", n)])?;
+    let mut commits = Vec::new();
+    for line in output.lines() {
+        let parts: Vec<&str> = line.splitn(4, '|').collect();
+        if parts.len() == 4 {
+            commits.push(GitCommit {
+                hash: parts[0].to_string(),
+                author: parts[1].to_string(),
+                date: parts[2].to_string(),
+                message: parts[3].to_string(),
+            });
+        }
+    }
+    Ok(commits)
+}
+
+#[derive(serde::Serialize)]
+pub struct GitCommit {
+    pub hash: String,
+    pub author: String,
+    pub date: String,
+    pub message: String,
+}
+
+fn run_git(dir: &str, args: &[&str]) -> Result<String, String> {
+    use std::process::Command;
+    let output = Command::new("git")
+        .args(args)
+        .current_dir(dir)
+        .output()
+        .map_err(|e| format!("执行 git 失败: {}", e))?;
+    if !output.status.success() {
+        let err = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("git 错误: {}", err.trim()));
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
+// ============ 文档关系图谱 ============
+
+/// 扫描工作区所有 md 文件的双向链接 [[]]，返回节点与边
+#[tauri::command]
+pub fn scan_links(dir: String) -> Result<GraphData, String> {
+    let mut nodes: Vec<GraphNode> = Vec::new();
+    let mut edges: Vec<GraphEdge> = Vec::new();
+    let mut files: Vec<String> = Vec::new();
+    collect_md_files(&dir, &mut files, 0)?;
+    for path in &files {
+        let name = Path::new(path)
+            .file_stem()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_else(|| path.clone());
+        nodes.push(GraphNode { id: name.clone(), path: path.clone() });
+    }
+    // 扫描每个文件的 [[link]]
+    for node in &nodes {
+        if let Ok(content) = fs::read_to_string(&node.path) {
+            let re = regex::Regex::new(r"\[\[([^\]]+)\]\]").unwrap();
+            for cap in re.captures_iter(&content) {
+                let target = cap.get(1).unwrap().as_str().trim().to_string();
+                let target_stem = target.split('|').next().unwrap_or(&target).trim().to_string();
+                // 只在工作区内匹配
+                if nodes.iter().any(|n| n.id == target_stem) {
+                    edges.push(GraphEdge {
+                        source: node.id.clone(),
+                        target: target_stem,
+                    });
+                }
+            }
+        }
+    }
+    Ok(GraphData { nodes, edges })
+}
+
+fn collect_md_files(dir: &str, files: &mut Vec<String>, depth: usize) -> Result<(), String> {
+    if depth > 6 {
+        return Ok(());
+    }
+    let entries = fs::read_dir(dir).map_err(|e| format!("读取目录失败: {}", e))?;
+    for entry in entries {
+        let entry = match entry {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.starts_with('.') || name.eq_ignore_ascii_case("node_modules") || name.eq_ignore_ascii_case("target") {
+            continue;
+        }
+        let path = entry.path();
+        let ft = entry.file_type();
+        let is_dir = ft.map(|t| t.is_dir()).unwrap_or(false);
+        if is_dir {
+            collect_md_files(path.to_str().unwrap_or(""), files, depth + 1)?;
+        } else if is_md_file(&name) {
+            files.push(path.to_string_lossy().to_string());
+        }
+    }
+    Ok(())
+}
+
+#[derive(serde::Serialize)]
+pub struct GraphData {
+    pub nodes: Vec<GraphNode>,
+    pub edges: Vec<GraphEdge>,
+}
+
+#[derive(serde::Serialize)]
+pub struct GraphNode {
+    pub id: String,
+    pub path: String,
+}
+
+#[derive(serde::Serialize)]
+pub struct GraphEdge {
+    pub source: String,
+    pub target: String,
+}

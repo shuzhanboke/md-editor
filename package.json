@@ -12,6 +12,7 @@
   "dependencies": {
     "@tauri-apps/api": "^2.11.1",
     "highlight.js": "^11.10.0",
+    "jszip": "^3.10.1",
     "katex": "^0.16.11",
     "marked": "^14.1.4",
     "marked-footnote": "^1.4.0",

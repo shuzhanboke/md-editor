@@ -83,6 +83,17 @@ export async function saveImage(baseDir, fileName, data) {
   return cmd("save_image", { baseDir, fileName, data });
 }
 
+// ============ Git 集成 ============
+export async function gitStatus(dir) { return cmd("git_status", { dir }); }
+export async function gitAdd(dir, paths) { return cmd("git_add", { dir, paths }); }
+export async function gitCommit(dir, message) { return cmd("git_commit", { dir, message }); }
+export async function gitPush(dir) { return cmd("git_push", { dir }); }
+export async function gitBranch(dir) { return cmd("git_branch", { dir }); }
+export async function gitLog(dir, count) { return cmd("git_log", { dir, count }); }
+
+/** 扫描文档关系图谱（双向链接 [[]]） */
+export async function scanLinks(dir) { return cmd("scan_links", { dir }); }
+
 /** 设置窗口标题 */
 export async function setWindowTitle(title) {
   if (!isTauri) return;

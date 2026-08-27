@@ -30,6 +30,9 @@
         <button id="btn-outline" title="大纲">☰</button>
         <button id="btn-sidebar" title="侧边栏">📑</button>
         <button id="btn-customcss" title="自定义 CSS">⚙</button>
+        <button id="btn-git" title="Git 面板 (Ctrl+Shift+G)">⎇</button>
+        <button id="btn-graph" title="文档图谱">🕸</button>
+        <button id="btn-publish" title="一键发布">📤</button>
       </div>
     </div>
 
@@ -87,6 +90,40 @@
         <div class="modal-footer">
           <button id="css-reset" class="modal-btn">重置</button>
           <button id="css-apply" class="modal-btn primary">应用</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Git 面板 -->
+    <div id="git-panel" class="search-panel hidden">
+      <div class="search-header">
+        <span id="git-branch" class="git-branch-label">分支: -</span>
+        <button id="git-refresh" class="modal-btn" style="padding:4px 8px;font-size:12px">刷新</button>
+        <button id="git-close" class="search-close">✕</button>
+      </div>
+      <div class="git-section-title">变更文件</div>
+      <div id="git-files" class="git-files"></div>
+      <div class="git-section-title">提交信息</div>
+      <textarea id="git-message" class="git-message" placeholder="提交信息..."></textarea>
+      <div class="git-actions">
+        <button id="git-stage-all" class="modal-btn">全部暂存</button>
+        <button id="git-commit-btn" class="modal-btn">提交</button>
+        <button id="git-push-btn" class="modal-btn primary">推送</button>
+      </div>
+      <div class="git-section-title">最近提交</div>
+      <div id="git-log" class="git-log"></div>
+    </div>
+
+    <!-- 文档关系图谱弹窗 -->
+    <div id="graph-modal" class="modal hidden">
+      <div class="modal-content" style="width:760px">
+        <div class="modal-header">
+          <span>文档关系图谱（[[双向链接]]）</span>
+          <button id="graph-close" class="search-close">✕</button>
+        </div>
+        <div style="position:relative;height:480px;padding:8px">
+          <svg id="graph-svg" width="100%" height="100%"></svg>
+          <div id="graph-empty" class="search-empty" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">无文档或无双向链接</div>
         </div>
       </div>
     </div>

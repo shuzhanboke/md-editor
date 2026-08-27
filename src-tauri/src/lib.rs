@@ -56,6 +56,13 @@ pub fn run() {
             commands::pick_directory,
             commands::search_in_dir,
             commands::save_image,
+            commands::git_status,
+            commands::git_add,
+            commands::git_commit,
+            commands::git_push,
+            commands::git_branch,
+            commands::git_log,
+            commands::scan_links,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

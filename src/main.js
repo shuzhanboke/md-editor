@@ -125,6 +125,240 @@ class App {
     document.getElementById("css-reset").addEventListener("click", () => this.resetCustomCss());
     // 启动时加载自定义 CSS
     this._loadCustomCss();
+
+    // Git 面板
+    document.getElementById("btn-git").addEventListener("click", () => this.toggleGitPanel());
+    document.getElementById("git-close").addEventListener("click", () => this.toggleGitPanel(false));
+    document.getElementById("git-refresh").addEventListener("click", () => this.refreshGit());
+    document.getElementById("git-stage-all").addEventListener("click", () => this.gitStageAll());
+    document.getElementById("git-commit-btn").addEventListener("click", () => this.gitCommit());
+    document.getElementById("git-push-btn").addEventListener("click", () => this.gitPush());
+
+    // 文档图谱
+    document.getElementById("btn-graph").addEventListener("click", () => this.toggleGraph());
+    document.getElementById("graph-close").addEventListener("click", () => this.toggleGraph(false));
+
+    // 一键发布
+    document.getElementById("btn-publish").addEventListener("click", () => this.publishTo());
+  }
+
+  /** 切换 Git 面板 */
+  toggleGitPanel(open) {
+    const panel = document.getElementById("git-panel");
+    const willOpen = open !== undefined ? open : panel.classList.contains("hidden");
+    panel.classList.toggle("hidden", !willOpen);
+    if (willOpen) this.refreshGit();
+  }
+
+  /** 刷新 git 状态 */
+  async refreshGit() {
+    if (!this.currentDir) {
+      this._toast("请先选择工作区目录");
+      return;
+    }
+    try {
+      const branch = await api.gitBranch(this.currentDir);
+      document.getElementById("git-branch").textContent = `分支: ${branch || "-(非 git 仓库)"}`;
+    } catch (e) {
+      document.getElementById("git-branch").textContent = "分支: -(非 git 仓库)";
+      document.getElementById("git-files").innerHTML = `<div class="search-empty">${escapeHtml(String(e))}</div>`;
+      return;
+    }
+    // 变更文件
+    try {
+      const files = await api.gitStatus(this.currentDir);
+      const box = document.getElementById("git-files");
+      if (files.length === 0) {
+        box.innerHTML = '<div class="search-empty">工作区干净，无变更</div>';
+      } else {
+        box.innerHTML = "";
+        for (const f of files) {
+          const item = document.createElement("div");
+          item.className = "git-file-item";
+          const badgeText = f.status[0].toUpperCase();
+          item.innerHTML = `<span class="git-badge ${f.status}">${badgeText}</span><span class="git-file-path" title="${escapeHtml(f.path)}">${escapeHtml(f.path)}</span>`;
+          item.addEventListener("click", () => this.gitAddFiles([f.path]));
+          box.appendChild(item);
+        }
+      }
+    } catch (e) {
+      document.getElementById("git-files").innerHTML = `<div class="search-empty">状态获取失败</div>`;
+    }
+    // 提交历史
+    try {
+      const log = await api.gitLog(this.currentDir, 15);
+      const logBox = document.getElementById("git-log");
+      logBox.innerHTML = "";
+      for (const c of log) {
+        const item = document.createElement("div");
+        item.className = "git-log-item";
+        item.innerHTML = `<div class="git-log-msg">${escapeHtml(c.message)}</div><div class="git-log-meta">${escapeHtml(c.author)} · ${escapeHtml(c.date)}</div>`;
+        logBox.appendChild(item);
+      }
+    } catch (e) {
+      /* 忽略 */
+    }
+  }
+
+  /** 暂存指定文件 */
+  async gitAddFiles(paths) {
+    try {
+      await api.gitAdd(this.currentDir, paths);
+      this._toast(`已暂存 ${paths.length} 个文件`);
+      this.refreshGit();
+    } catch (e) {
+      alert("暂存失败: " + e);
+    }
+  }
+
+  /** 全部暂存 */
+  async gitStageAll() {
+    await this.gitAddFiles(["."]);
+  }
+
+  /** 提交 */
+  async gitCommit() {
+    const msg = document.getElementById("git-message").value.trim();
+    if (!msg) {
+      this._toast("请输入提交信息");
+      return;
+    }
+    try {
+      await api.gitCommit(this.currentDir, msg);
+      document.getElementById("git-message").value = "";
+      this._toast("提交成功");
+      this.refreshGit();
+    } catch (e) {
+      alert("提交失败: " + e);
+    }
+  }
+
+  /** 推送 */
+  async gitPush() {
+    this._toast("推送中...");
+    try {
+      await api.gitPush(this.currentDir);
+      this._toast("推送成功");
+      this.refreshGit();
+    } catch (e) {
+      alert("推送失败: " + e + "\n（若网络受限，可用 gh 或 GitHub API 推送）");
+    }
+  }
+
+  /** 切换文档图谱 */
+  toggleGraph(open) {
+    const modal = document.getElementById("graph-modal");
+    const willOpen = open !== undefined ? open : modal.classList.contains("hidden");
+    modal.classList.toggle("hidden", !willOpen);
+    if (willOpen) this.renderGraph();
+  }
+
+  /** 渲染关系图谱（圆周分布 + 连线） */
+  async renderGraph() {
+    const svg = document.getElementById("graph-svg");
+    const empty = document.getElementById("graph-empty");
+    if (!this.currentDir) {
+      empty.textContent = "请先选择工作区目录";
+      empty.style.display = "flex";
+      return;
+    }
+    let data;
+    try {
+      data = await api.scanLinks(this.currentDir);
+    } catch (e) {
+      empty.textContent = "扫描失败: " + e;
+      empty.style.display = "flex";
+      return;
+    }
+    if (!data.nodes || data.nodes.length === 0) {
+      empty.textContent = "工作区无 Markdown 文件";
+      empty.style.display = "flex";
+      svg.innerHTML = "";
+      return;
+    }
+    empty.style.display = "none";
+    const w = svg.clientWidth || 740;
+    const h = svg.clientHeight || 460;
+    const cx = w / 2, cy = h / 2;
+    const r = Math.min(w, h) / 2 - 50;
+    // 节点圆周分布
+    const pos = {};
+    data.nodes.forEach((n, i) => {
+      const angle = (i / data.nodes.length) * Math.PI * 2;
+      pos[n.id] = { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+    });
+    let html = "";
+    // 连线
+    for (const e of data.edges) {
+      const a = pos[e.source], b = pos[e.target];
+      if (a && b) {
+        html += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="var(--accent-color)" stroke-width="1" opacity="0.4"/>`;
+      }
+    }
+    // 节点
+    for (const n of data.nodes) {
+      const p = pos[n.id];
+      html += `<circle cx="${p.x}" cy="${p.y}" r="6" fill="var(--accent-color)" stroke="var(--bg-content)" stroke-width="2" data-path="${escapeAttr(n.path)}" style="cursor:pointer"><title>${escapeHtml(n.id)}</title></circle>`;
+      html += `<text x="${p.x}" y="${p.y - 10}" text-anchor="middle" font-size="11" fill="var(--text-color)">${escapeHtml(n.id.slice(0, 12))}</text>`;
+    }
+    svg.innerHTML = html;
+    // 点击节点打开文件
+    svg.querySelectorAll("circle").forEach((c) => {
+      c.addEventListener("click", () => {
+        const p = c.getAttribute("data-path");
+        const name = p.split(/[\\\/]/).pop();
+        this._openFromTree(p, name);
+        this.toggleGraph(false);
+      });
+    });
+  }
+
+  /** 一键发布到平台 */
+  async publishTo() {
+    const tab = this.tabs.find((t) => t.id === this.activeTabId);
+    if (!tab) return;
+    const platform = prompt("选择发布平台，输入数字：\n1 = 知乎\n2 = 微信公众号\n3 = 语雀\n4 = WordPress\n5 = 掘金", "1");
+    const platforms = {
+      "1": { name: "知乎", url: "https://zhuanlan.zhihu.com/write", adapt: "wechat" },
+      "2": { name: "微信公众号", url: "https://mp.weixin.qq.com/", adapt: "wechat" },
+      "3": { name: "语雀", url: "https://www.yuque.com/new", adapt: "normal" },
+      "4": { name: "WordPress", url: "", adapt: "html" },
+      "5": { name: "掘金", url: "https://juejin.cn/editor/drafts/new?v=2", adapt: "normal" },
+    };
+    const p = platforms[(platform || "").trim()];
+    if (!p) return;
+    const inner = await this._renderExportHtml(tab);
+    const body = inner.match(/<body>([\s\S]*)<\/body>/)?.[1] || inner;
+    // 微信适配：内联样式（微信编辑器不支持外联 CSS）
+    let html = body;
+    if (p.adapt === "wechat") {
+      html = this._inlineStyles(body);
+    }
+    // 复制到剪贴板
+    await this._copyToClipboard(html, html.replace(/<[^>]+>/g, ""));
+    this._toast(`已复制${p.name}适配内容，即将打开发布页`);
+    // 打开发布页
+    if (p.url) {
+      setTimeout(() => window.open(p.url, "_blank"), 800);
+    } else {
+      alert(`${p.name}：内容已复制，请粘贴到你的 WordPress 编辑器`);
+    }
+  }
+
+  /** 微信适配：给元素加内联样式 */
+  _inlineStyles(html) {
+    // 简单内联：包裹 section 加基本样式
+    const styled = html
+      .replace(/<h1/g, '<h1 style="font-size:22px;font-weight:bold;margin:1em 0 .5em"')
+      .replace(/<h2/g, '<h2 style="font-size:18px;font-weight:bold;margin:1em 0 .5em"')
+      .replace(/<h3/g, '<h3 style="font-size:16px;font-weight:bold;margin:1em 0 .5em"')
+      .replace(/<p/g, '<p style="margin:.6em 0;line-height:1.7"')
+      .replace(/<pre/g, '<pre style="background:#f6f8fa;padding:14px;border-radius:6px;overflow:auto;font-size:13px"')
+      .replace(/<blockquote/g, '<blockquote style="border-left:4px solid #dfe2e5;padding:4px 16px;color:#666;margin:1em 0"')
+      .replace(/<code/g, '<code style="background:#f6f8fa;padding:2px 5px;border-radius:3px;font-size:.9em"')
+      .replace(/<img/g, '<img style="max-width:100%"')
+      .replace(/<a /g, '<a style="color:#4183c4" ');
+    return `<section style="font-size:15px;color:#303133">${styled}</section>`;
   }
 
   /** 切换自定义 CSS 弹窗 */
@@ -614,12 +848,13 @@ class App {
   async exportCurrent() {
     const tab = this.tabs.find((t) => t.id === this.activeTabId);
     if (!tab) return;
-    const choice = confirm("确定 = 导出 HTML 文件\n取消 = 打印为 PDF");
-    if (choice) {
-      await this._exportHtml(tab);
-    } else {
-      await this._exportPdf(tab);
-    }
+    // 弹出格式选择菜单
+    const choice = prompt("导出格式，输入数字：\n1 = HTML\n2 = PDF（打印）\n3 = Word（.docx）\n4 = Epub 电子书", "1");
+    const fmt = (choice || "").trim();
+    if (fmt === "1") await this._exportHtml(tab);
+    else if (fmt === "2") await this._exportPdf(tab);
+    else if (fmt === "3") await this._exportDocx(tab);
+    else if (fmt === "4") await this._exportEpub(tab);
   }
 
   /** 渲染完整 HTML（含 katex/mermaid）用于导出 */
@@ -666,6 +901,69 @@ class App {
     setTimeout(() => {
       w.print();
     }, 600);
+  }
+
+  /** 导出 Word（.docx，实际为 Word 兼容 HTML，扩展名 .doc） */
+  async _exportDocx(tab) {
+    const inner = await this._renderExportHtml(tab);
+    // Word 能直接打开带 Office 命名空间的 HTML
+    const docHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><title>${tab.name}</title></head><body>${inner.match(/<body>([\s\S]*)<\/body>/)?.[1] || inner}</body></html>`;
+    const blob = new Blob([`\ufeff${docHtml}`], { type: "application/msword;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = tab.name.replace(/\.(md|markdown|txt)$/, "") + ".doc";
+    a.click();
+    URL.revokeObjectURL(url);
+    this._toast("已导出 Word");
+  }
+
+  /** 导出 Epub（最小标准 epub 结构） */
+  async _exportEpub(tab) {
+    const JSZip = (await import("jszip")).default;
+    const inner = await this._renderExportHtml(tab);
+    const body = inner.match(/<body>([\s\S]*)<\/body>/)?.[1] || inner;
+    const title = tab.name.replace(/\.(md|markdown|txt)$/, "");
+    const zip = new JSZip();
+    // mimetype（必须无压缩）
+    zip.file("mimetype", "application/epub+zip", { compression: "STORE" });
+    // META-INF/container.xml
+    zip.file("META-INF/container.xml", `<?xml version="1.0"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+<rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles>
+</container>`);
+    // OEBPS/content.opf
+    zip.file("OEBPS/content.opf", `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="bookid">
+<metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+<dc:title>${title}</dc:title>
+<dc:language>zh-CN</dc:language>
+<dc:identifier id="bookid">md-editor-${Date.now()}</dc:identifier>
+</metadata>
+<manifest>
+<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+<item id="ch1" href="ch1.xhtml" media-type="application/xhtml+xml"/>
+</manifest>
+<spine toc="ncx"><itemref idref="ch1"/></spine>
+</package>`);
+    // OEBPS/toc.ncx
+    zip.file("OEBPS/toc.ncx", `<?xml version="1.0" encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+<head><meta name="dtb:uid" content="md-editor-${Date.now()}"/></head>
+<navMap><navPoint id="np1" playOrder="1"><navLabel><text>${title}</text></navLabel><content src="ch1.xhtml"/></navPoint></navMap>
+</ncx>`);
+    // OEBPS/ch1.xhtml
+    zip.file("OEBPS/ch1.xhtml", `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"><head><title>${title}</title></head><body>${body}</body></html>`);
+    const blob = await zip.generateAsync({ type: "blob", mimeType: "application/epub+zip" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = title + ".epub";
+    a.click();
+    URL.revokeObjectURL(url);
+    this._toast("已导出 Epub");
   }
 
   /** 主题切换 */
@@ -773,6 +1071,12 @@ class App {
           if (e.shiftKey) {
             e.preventDefault();
             this.toggleSearch();
+          }
+          break;
+        case "g":
+          if (e.shiftKey) {
+            e.preventDefault();
+            this.toggleGitPanel();
           }
           break;
       }
