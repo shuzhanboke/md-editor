@@ -22,9 +22,10 @@ pub fn write_file(path: String, content: String) -> Result<(), String> {
     fs::write(&path, &content).map_err(|e| format!("写入文件失败: {}", e))
 }
 
-/// 列出目录下的条目
+/// 列出目录下的条目（only_md=true 时只返回 .md/.markdown 文件 + 目录）
 #[tauri::command]
-pub fn list_dir(path: String) -> Result<Vec<DirEntry>, String> {
+pub fn list_dir(path: String, only_md: Option<bool>) -> Result<Vec<DirEntry>, String> {
+    let filter_md = only_md.unwrap_or(false);
     let mut entries = Vec::new();
     let read = fs::read_dir(&path).map_err(|e| format!("读取目录失败: {}", e))?;
     for entry in read {
@@ -35,6 +36,13 @@ pub fn list_dir(path: String) -> Result<Vec<DirEntry>, String> {
             continue;
         }
         let is_dir = file_type.map(|t| t.is_dir()).unwrap_or(false);
+        // 只识别 md 时过滤非 md 文件（目录始终保留）
+        if filter_md && !is_dir {
+            let lower = name.to_lowercase();
+            if !lower.ends_with(".md") && !lower.ends_with(".markdown") {
+                continue;
+            }
+        }
         let entry_path = entry.path().to_string_lossy().to_string();
         entries.push(DirEntry {
             name,
@@ -319,6 +327,34 @@ pub fn git_push(dir: String) -> Result<String, String> {
 pub fn git_branch(dir: String) -> Result<String, String> {
     let output = run_git(&dir, &["rev-parse", "--abbrev-ref", "HEAD"])?;
     Ok(output.trim().to_string())
+}
+
+/// 初始化 git 仓库（如尚未初始化）
+#[tauri::command]
+pub fn git_init(dir: String) -> Result<(), String> {
+    run_git(&dir, &["init"])?;
+    Ok(())
+}
+
+/// 设置 remote origin URL
+#[tauri::command]
+pub fn git_set_remote(dir: String, url: String) -> Result<(), String> {
+    // 先尝试移除已有的 origin，再添加
+    let _ = run_git(&dir, &["remote", "remove", "origin"]);
+    run_git(&dir, &["remote", "add", "origin", &url])?;
+    Ok(())
+}
+
+/// 获取当前 remote URL
+#[tauri::command]
+pub fn git_get_remote(dir: String) -> Result<Option<String>, String> {
+    match run_git(&dir, &["remote", "get-url", "origin"]) {
+        Ok(url) => {
+            let u = url.trim().to_string();
+            if u.is_empty() { Ok(None) } else { Ok(Some(u)) }
+        }
+        Err(_) => Ok(None),
+    }
 }
 
 /// 最近提交历史

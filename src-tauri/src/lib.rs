@@ -62,6 +62,9 @@ pub fn run() {
             commands::git_push,
             commands::git_branch,
             commands::git_log,
+            commands::git_init,
+            commands::git_set_remote,
+            commands::git_get_remote,
             commands::scan_links,
         ])
         .run(tauri::generate_context!())

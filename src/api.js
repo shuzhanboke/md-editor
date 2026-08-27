@@ -38,9 +38,9 @@ export async function writeFile(path, content) {
   return cmd("write_file", { path, content });
 }
 
-/** 列出目录 */
-export async function listDir(path) {
-  return cmd("list_dir", { path });
+/** 列出目录（only_md 只返回 md 文件） */
+export async function listDir(path, onlyMd = true) {
+  return cmd("list_dir", { path, onlyMd });
 }
 
 /** 文件是否存在 */
@@ -90,6 +90,9 @@ export async function gitCommit(dir, message) { return cmd("git_commit", { dir, 
 export async function gitPush(dir) { return cmd("git_push", { dir }); }
 export async function gitBranch(dir) { return cmd("git_branch", { dir }); }
 export async function gitLog(dir, count) { return cmd("git_log", { dir, count }); }
+export async function gitInit(dir) { return cmd("git_init", { dir }); }
+export async function gitSetRemote(dir, url) { return cmd("git_set_remote", { dir, url }); }
+export async function gitGetRemote(dir) { return cmd("git_get_remote", { dir }); }
 
 /** 扫描文档关系图谱（双向链接 [[]]） */
 export async function scanLinks(dir) { return cmd("scan_links", { dir }); }

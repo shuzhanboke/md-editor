@@ -36,6 +36,34 @@
       </div>
     </div>
 
+    <!-- 格式工具栏（可收缩） -->
+    <div id="format-toolbar" class="format-toolbar">
+      <button class="ft-btn" data-fmt="bold" title="加粗 Ctrl+B"><b>B</b></button>
+      <button class="ft-btn" data-fmt="italic" title="斜体 Ctrl+I"><i>I</i></button>
+      <button class="ft-btn" data-fmt="strike" title="删除线"><s>S</s></button>
+      <button class="ft-btn" data-fmt="code" title="行内代码">&lt;/&gt;</button>
+      <span class="ft-sep"></span>
+      <button class="ft-btn" data-fmt="h1" title="一级标题">H1</button>
+      <button class="ft-btn" data-fmt="h2" title="二级标题">H2</button>
+      <button class="ft-btn" data-fmt="h3" title="三级标题">H3</button>
+      <button class="ft-btn" data-fmt="h4" title="四级标题">H4</button>
+      <span class="ft-sep"></span>
+      <button class="ft-btn" data-fmt="ul" title="无序列表">• </button>
+      <button class="ft-btn" data-fmt="ol" title="有序列表">1.</button>
+      <button class="ft-btn" data-fmt="task" title="任务列表">☑</button>
+      <button class="ft-btn" data-fmt="quote" title="引用">❝</button>
+      <span class="ft-sep"></span>
+      <button class="ft-btn" data-fmt="link" title="链接 🔗">🔗</button>
+      <button class="ft-btn" data-fmt="image" title="图片 🖼">🖼</button>
+      <button class="ft-btn" data-fmt="table" title="表格">▦</button>
+      <button class="ft-btn" data-fmt="hr" title="分隔线">―</button>
+      <button class="ft-btn" data-fmt="codeblock" title="代码块">{ }</button>
+      <button class="ft-btn" data-fmt="math" title="数学公式">∑</button>
+      <span class="ft-sep"></span>
+      <button class="ft-btn" data-fmt="mermaid" title="Mermaid 图表">📊</button>
+      <button class="ft-toggle" id="toolbar-toggle" title="收起工具栏">▾</button>
+    </div>
+
     <div id="main">
       <!-- 文件树侧边栏 -->
       <div id="sidebar">
@@ -109,6 +137,12 @@
         <button id="git-stage-all" class="modal-btn">全部暂存</button>
         <button id="git-commit-btn" class="modal-btn">提交</button>
         <button id="git-push-btn" class="modal-btn primary">推送</button>
+      </div>
+      <div class="git-section-title">仓库配置</div>
+      <div class="git-config">
+        <input type="text" id="git-remote-url" class="git-remote-input" placeholder="远程仓库 URL（如 https://github.com/user/repo.git）" />
+        <button id="git-save-remote" class="modal-btn" style="padding:4px 10px;font-size:12px">设置</button>
+        <button id="git-init-btn" class="modal-btn" style="padding:4px 10px;font-size:12px">初始化</button>
       </div>
       <div class="git-section-title">最近提交</div>
       <div id="git-log" class="git-log"></div>

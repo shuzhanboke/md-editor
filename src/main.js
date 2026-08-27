@@ -133,6 +133,8 @@ class App {
     document.getElementById("git-stage-all").addEventListener("click", () => this.gitStageAll());
     document.getElementById("git-commit-btn").addEventListener("click", () => this.gitCommit());
     document.getElementById("git-push-btn").addEventListener("click", () => this.gitPush());
+    document.getElementById("git-save-remote").addEventListener("click", () => this.gitSaveRemote());
+    document.getElementById("git-init-btn").addEventListener("click", () => this.gitInitRepo());
 
     // 文档图谱
     document.getElementById("btn-graph").addEventListener("click", () => this.toggleGraph());
@@ -140,6 +142,100 @@ class App {
 
     // 一键发布
     document.getElementById("btn-publish").addEventListener("click", () => this.publishTo());
+
+    // 格式工具栏
+    this._initFormatToolbar();
+  }
+
+  _initFormatToolbar() {
+    const toolbar = document.getElementById("format-toolbar");
+    // 收起/展开
+    const toggle = document.getElementById("toolbar-toggle");
+    // 动态创建展开按钮
+    const expand = document.createElement("button");
+    expand.id = "toolbar-expand";
+    expand.textContent = "▴";
+    expand.title = "展开工具栏";
+    expand.style.position = "absolute";
+    expand.style.right = "12px";
+    expand.style.top = "var(--titlebar-height)";
+    document.body.appendChild(expand);
+    expand.classList.add("show");
+    expand.style.display = "none";
+
+    const collapse = () => {
+      toolbar.classList.add("collapsed");
+      expand.style.display = "block";
+    };
+    const expandFn = () => {
+      toolbar.classList.remove("collapsed");
+      expand.style.display = "none";
+    };
+    toggle.addEventListener("click", collapse);
+    expand.addEventListener("click", expandFn);
+
+    // 工具栏记忆
+    if (localStorage.getItem("md-toolbar") === "collapsed") collapse();
+
+    // 格式按钮
+    toolbar.addEventListener("click", (e) => {
+      const btn = e.target.closest(".ft-btn");
+      if (!btn) return;
+      const fmt = btn.dataset.fmt;
+      this._insertFormat(fmt);
+    });
+  }
+
+  /** 插入格式 markdown */
+  _insertFormat(fmt) {
+    const mdMap = {
+      bold: "**", italic: "*", strike: "~~", code: "`",
+      h1: "# ", h2: "## ", h3: "### ", h4: "#### ",
+      ul: "- ", ol: "1. ", task: "- [ ] ", quote: "> ",
+      hr: "\n---\n",
+      codeblock: "```js\n\n```",
+      math: "$$\n\n$$",
+      mermaid: "```mermaid\ngraph TD\n  A-->B\n```",
+    };
+    if (fmt in mdMap) {
+      const prefix = mdMap[fmt];
+      // 行级格式（标题/列表/引用）：在行首插入
+      if (/^(h\d|ul|ol|task|quote)/.test(fmt)) {
+        this.editor.insertAtCursor(prefix);
+      } else if (fmt === "hr" || fmt === "codeblock" || fmt === "math" || fmt === "mermaid") {
+        this.editor.insertAtCursor(prefix);
+      } else {
+        // 包裹格式（加粗/斜体等）：包裹选中文本或插入占位
+        this._wrapSelection(prefix, prefix);
+      }
+    } else if (fmt === "link") {
+      this._wrapSelection("[", "](url)");
+    } else if (fmt === "image") {
+      this.editor.insertAtCursor("![描述](url)");
+    } else if (fmt === "table") {
+      this.editor.insertAtCursor("\n| 列1 | 列2 |\n|---|---|\n| 内容 | 内容 |\n");
+    }
+  }
+
+  /** 包裹选中文本 */
+  _wrapSelection(before, after) {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount && !sel.isCollapsed) {
+      const range = sel.getRangeAt(0);
+      const text = sel.toString();
+      range.deleteContents();
+      const node = document.createTextNode(before + text + after);
+      range.insertNode(node);
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      if (this.editor.editing) {
+        this.editor.source = this.editor.root.textContent;
+        this.editor.onChange(this.editor.source, true);
+      }
+    } else {
+      this.editor.insertAtCursor(before + (after.startsWith("]") ? "描述" : "") + after);
+    }
   }
 
   /** 切换 Git 面板 */
@@ -159,9 +255,14 @@ class App {
     try {
       const branch = await api.gitBranch(this.currentDir);
       document.getElementById("git-branch").textContent = `分支: ${branch || "-(非 git 仓库)"}`;
+      // 加载 remote URL
+      const remote = await api.gitGetRemote(this.currentDir);
+      document.getElementById("git-remote-url").value = remote || localStorage.getItem("md-git-remote") || "";
     } catch (e) {
       document.getElementById("git-branch").textContent = "分支: -(非 git 仓库)";
       document.getElementById("git-files").innerHTML = `<div class="search-empty">${escapeHtml(String(e))}</div>`;
+      // 仍填充记忆的 remote
+      document.getElementById("git-remote-url").value = localStorage.getItem("md-git-remote") || "";
       return;
     }
     // 变更文件
@@ -245,6 +346,34 @@ class App {
     }
   }
 
+  /** 保存/设置 remote URL */
+  async gitSaveRemote() {
+    const url = document.getElementById("git-remote-url").value.trim();
+    if (!url) {
+      this._toast("请输入远程仓库 URL");
+      return;
+    }
+    localStorage.setItem("md-git-remote", url);
+    try {
+      await api.gitSetRemote(this.currentDir, url);
+      this._toast("远程仓库已设置");
+      this.refreshGit();
+    } catch (e) {
+      alert("设置 remote 失败: " + e);
+    }
+  }
+
+  /** 初始化 git 仓库 */
+  async gitInitRepo() {
+    try {
+      await api.gitInit(this.currentDir);
+      this._toast("Git 仓库已初始化");
+      this.refreshGit();
+    } catch (e) {
+      alert("初始化失败: " + e);
+    }
+  }
+
   /** 切换文档图谱 */
   toggleGraph(open) {
     const modal = document.getElementById("graph-modal");
@@ -271,7 +400,7 @@ class App {
       return;
     }
     if (!data.nodes || data.nodes.length === 0) {
-      empty.textContent = "工作区无 Markdown 文件";
+      empty.textContent = "工作区无 Markdown 文件，请选择含 .md 文件的目录";
       empty.style.display = "flex";
       svg.innerHTML = "";
       return;
@@ -317,32 +446,53 @@ class App {
   async publishTo() {
     const tab = this.tabs.find((t) => t.id === this.activeTabId);
     if (!tab) return;
-    const platform = prompt("选择发布平台，输入数字：\n1 = 知乎\n2 = 微信公众号\n3 = 语雀\n4 = WordPress\n5 = 掘金", "1");
-    const platforms = {
-      "1": { name: "知乎", url: "https://zhuanlan.zhihu.com/write", adapt: "wechat" },
-      "2": { name: "微信公众号", url: "https://mp.weixin.qq.com/", adapt: "wechat" },
-      "3": { name: "语雀", url: "https://www.yuque.com/new", adapt: "normal" },
-      "4": { name: "WordPress", url: "", adapt: "html" },
-      "5": { name: "掘金", url: "https://juejin.cn/editor/drafts/new?v=2", adapt: "normal" },
-    };
-    const p = platforms[(platform || "").trim()];
+    // 合并预设平台与用户自定义平台
+    const defaults = [
+      { name: "知乎", url: "https://zhuanlan.zhihu.com/write", adapt: "wechat" },
+      { name: "微信公众号", url: "https://mp.weixin.qq.com/", adapt: "wechat" },
+      { name: "语雀", url: "https://www.yuque.com/new", adapt: "normal" },
+      { name: "掘金", url: "https://juejin.cn/editor/drafts/new?v=2", adapt: "normal" },
+    ];
+    const custom = JSON.parse(localStorage.getItem("md-publish-platforms") || "[]");
+    const all = [...defaults, ...custom];
+    // 构建选项
+    let opts = "选择发布平台（输入数字，0 = 添加自定义平台）：\n";
+    all.forEach((p, i) => { opts += `${i + 1} = ${p.name}${p.url ? "" : "（仅复制）"}\n`; });
+    opts += "0 = 添加自定义平台";
+    const choice = prompt(opts, "1");
+    const idx = parseInt((choice || "").trim(), 10);
+    if (idx === 0) {
+      this._addPublishPlatform();
+      return;
+    }
+    const p = all[idx - 1];
     if (!p) return;
     const inner = await this._renderExportHtml(tab);
     const body = inner.match(/<body>([\s\S]*)<\/body>/)?.[1] || inner;
-    // 微信适配：内联样式（微信编辑器不支持外联 CSS）
     let html = body;
     if (p.adapt === "wechat") {
       html = this._inlineStyles(body);
     }
-    // 复制到剪贴板
     await this._copyToClipboard(html, html.replace(/<[^>]+>/g, ""));
     this._toast(`已复制${p.name}适配内容，即将打开发布页`);
-    // 打开发布页
     if (p.url) {
       setTimeout(() => window.open(p.url, "_blank"), 800);
     } else {
-      alert(`${p.name}：内容已复制，请粘贴到你的 WordPress 编辑器`);
+      alert(`${p.name}：内容已复制，请粘贴到你的编辑器`);
     }
+  }
+
+  /** 添加自定义发布平台 */
+  _addPublishPlatform() {
+    const name = prompt("平台名称（如：CSDN）");
+    if (!name) return;
+    const url = prompt("发布页 URL（留空则仅复制到剪贴板）") || "";
+    const adapt = confirm("该平台需要微信内联样式适配吗？\n确定 = 需要（微信公众号类）\n取消 = 不需要") ? "wechat" : "normal";
+    const custom = JSON.parse(localStorage.getItem("md-publish-platforms") || "[]");
+    custom.push({ name, url, adapt });
+    localStorage.setItem("md-publish-platforms", JSON.stringify(custom));
+    this._toast(`已添加平台「${name}」`);
+    this.publishTo();
   }
 
   /** 微信适配：给元素加内联样式 */
