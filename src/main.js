@@ -145,6 +145,24 @@ class App {
 
     // 格式工具栏
     this._initFormatToolbar();
+
+    // 模式切换
+    document.getElementById("btn-mode").addEventListener("click", () => this.toggleMode());
+  }
+
+  /** 切换源码/渲染模式 */
+  toggleMode() {
+    this.editor.toggleSourceMode();
+    const btn = document.getElementById("btn-mode");
+    if (this.editor.editing) {
+      btn.textContent = "👁";
+      btn.title = "切换到渲染模式";
+      this._toast("源码模式");
+    } else {
+      btn.textContent = "📝";
+      btn.title = "切换到源码模式";
+      this._toast("渲染模式");
+    }
   }
 
   _initFormatToolbar() {
@@ -196,22 +214,8 @@ class App {
     }).observe(toolbar, { attributes: true, attributeFilter: ["class"] });
   }
 
-  /** 插入格式 markdown */
+  /** 插入格式 markdown（适配双模式） */
   _insertFormat(fmt) {
-    // 如果当前不在编辑态，先进入编辑态（保存当前选中文本以便后续包裹）
-    let selectedText = "";
-    const sel = window.getSelection();
-    if (sel && sel.rangeCount && !sel.isCollapsed) {
-      selectedText = sel.toString();
-    }
-    if (!this.editor.editing) {
-      this.editor._enterEdit();
-      // 进入编辑态后，光标在末尾；如果有选中文本，尝试在源码中定位并选中
-      if (selectedText) {
-        this._selectInEditor(selectedText);
-      }
-    }
-
     // 包裹型格式
     const wrapMap = {
       bold: ["**", "**"], italic: ["*", "*"], strike: ["~~", "~~"], code: ["`", "`"],
@@ -219,7 +223,11 @@ class App {
     };
     if (fmt in wrapMap) {
       const [before, after] = wrapMap[fmt];
-      this._wrapInEditor(before, after, selectedText);
+      if (this.editor.editing) {
+        this._wrapInEditor(before, after, "");
+      } else {
+        this.editor.applyWrapFormat(before, after);
+      }
       return;
     }
 
@@ -229,7 +237,11 @@ class App {
       ul: "- ", ol: "1. ", task: "- [ ] ", quote: "> ",
     };
     if (fmt in lineMap) {
-      this._insertAtLineStart(lineMap[fmt]);
+      if (this.editor.editing) {
+        this._insertAtLineStart(lineMap[fmt]);
+      } else {
+        this.editor.applyLineFormat(lineMap[fmt]);
+      }
       return;
     }
 
@@ -243,7 +255,7 @@ class App {
       mermaid: "\n```mermaid\ngraph TD\n  A-->B\n```\n",
     };
     if (fmt in insertMap) {
-      this.editor.insertAtCursor(insertMap[fmt]);
+      this.editor.insertSnippet(insertMap[fmt]);
     }
   }
 

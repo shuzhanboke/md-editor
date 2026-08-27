@@ -96,20 +96,20 @@ async function run() {
     if (afterTabs > beforeTabs) ok(`新建标签页 (${beforeTabs} → ${afterTabs})`); else bad("新建标签页", "数量未增");
   } catch (e) { bad("新建标签页", e.message); }
 
-  // 10. 编辑器即时渲染：点击进入源码编辑态
+  // 10. 编辑器模式切换（手动切换源码模式）
   try {
     // 新建标签页后 active 是空标签，先切回第一个有内容的标签
     await page.locator("#tab-bar .tab").first().click();
     await page.waitForTimeout(500);
-    // 等待异步渲染（mermaid）稳定后，点击 editor 触发进入编辑态
-    await page.evaluate(() => {
-      const ed = document.getElementById("editor");
-      if (ed) ed.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
+    // 点模式切换按钮进入源码模式
+    await page.click("#btn-mode", { force: true });
     await page.waitForTimeout(300);
     const editing = await page.locator("#editor.editing-mode").count();
-    if (editing >= 1) ok(`编辑器进入源码编辑态`); else bad("编辑器进入源码编辑态", "无 .editing-mode");
-  } catch (e) { bad("编辑器进入源码编辑态", e.message.slice(0, 80)); }
+    if (editing >= 1) ok(`手动切换进入源码模式`); else bad("手动切换进入源码模式", "无 .editing-mode");
+    // 切回渲染模式
+    await page.click("#btn-mode", { force: true });
+    await page.waitForTimeout(1000);
+  } catch (e) { bad("手动切换进入源码模式", e.message.slice(0, 80)); }
 
   // 11. 状态栏字数统计
   try {

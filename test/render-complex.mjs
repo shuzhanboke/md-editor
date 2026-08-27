@@ -155,17 +155,17 @@ try {
   else bad("主题状态记忆", "未保存");
 } catch (e) { bad("主题状态记忆", e.message.slice(0, 80)); }
 
-// 11. 进入编辑态后整体重渲染无断裂
+// 11. 手动切换源码模式后整体重渲染无断裂
 try {
-  await page.evaluate(() => {
-    const ed = document.getElementById("editor");
-    ed.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-  });
+  await page.click("#btn-mode", { force: true });
   await page.waitForTimeout(300);
   const editing = await page.locator("#editor.editing-mode").count();
-  if (editing >= 1) ok("整体编辑态进入");
-  else bad("整体编辑态进入", "无 .editing-mode");
-} catch (e) { bad("整体编辑态进入", e.message.slice(0, 80)); }
+  if (editing >= 1) ok("手动切换源码模式");
+  else bad("手动切换源码模式", "无 .editing-mode");
+  // 切回
+  await page.click("#btn-mode", { force: true });
+  await page.waitForTimeout(1000);
+} catch (e) { bad("手动切换源码模式", e.message.slice(0, 80)); }
 
 await browser.close();
 console.log(`\n结果: ${passed} 通过, ${failed} 失败`);
