@@ -184,8 +184,11 @@ export class Editor {
   /** 渲染模式：选中文字应用包裹格式（在 source 层面操作） */
   applyWrapFormat(before, after) {
     if (this.editing) return; // 全文源码模式由 main.js 处理
+    // 先保存选中文本（提交块编辑会丢失选区）
     const sel = window.getSelection();
     const selectedText = sel && sel.rangeCount ? sel.toString() : "";
+    // 提交块编辑，确保 source 是干净的最新值
+    if (this.editingBlock) this.commitBlockEdit();
     if (!selectedText) {
       this.source += "\n" + before + "文本" + after;
       this._render();
@@ -198,7 +201,6 @@ export class Editor {
     } else {
       this.source += "\n" + before + selectedText + after;
     }
-    if (this.editingBlock) this.commitBlockEdit();
     this._render();
     this.onChange(this.source, true);
   }
@@ -206,8 +208,11 @@ export class Editor {
   /** 渲染模式：行首格式 */
   applyLineFormat(prefix) {
     if (this.editing) return;
+    // 先保存选中文本
     const sel = window.getSelection();
     const selectedText = sel && sel.rangeCount ? sel.toString() : "";
+    // 提交块编辑
+    if (this.editingBlock) this.commitBlockEdit();
     if (!selectedText) {
       this.source += "\n" + prefix + "文本";
       this._render();
