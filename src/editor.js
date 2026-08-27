@@ -269,10 +269,13 @@ export class Editor {
       this.source = this.root.textContent;
       this.onChange(this.source, true);
     } else if (this.editingBlock) {
-      // 块级编辑：更新该块源码
+      // 块级编辑：实时更新 source 中的对应块
       const block = this.editingBlock;
-      block.dataset.raw = block.textContent;
-      // 暂不写回 source（提交时再写回）
+      const oldRaw = block.dataset.raw || "";
+      const newRaw = block.textContent;
+      block.dataset.raw = newRaw;
+      // 实时把块的新内容写回 source
+      this._updateBlockSource(oldRaw, newRaw);
       this.onChange(this.source, true);
     }
   }

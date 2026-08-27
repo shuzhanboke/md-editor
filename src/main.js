@@ -1084,6 +1084,9 @@ class App {
 
   /** 保存当前 */
   async saveCurrent() {
+    // 保存前先提交块级编辑，确保 source 是最新
+    if (this.editor.editingBlock) this.editor.commitBlockEdit();
+    if (this.editor.editing) this.editor.toggleSourceMode();
     const tab = this.tabs.find((t) => t.id === this.activeTabId);
     if (!tab) return;
     if (tab.path) {
