@@ -26,7 +26,7 @@ jobs:
       - name: 构建前端
         run: npx vite build
       - name: 构建 Tauri
-        run: node node_modules/@tauri-apps/cli/main.js build --no-bundle
+        run: npx --yes @tauri-apps/cli build --no-bundle
         env:
           CI: "false"
       - name: 上传产物
@@ -60,7 +60,7 @@ jobs:
       - name: 构建前端
         run: npx vite build
       - name: 构建 Tauri（Linux）
-        run: node node_modules/@tauri-apps/cli/main.js build --no-bundle
+        run: npx --yes @tauri-apps/cli build --no-bundle
         env:
           CI: "false"
       - name: 上传产物
