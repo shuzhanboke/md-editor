@@ -23,8 +23,12 @@ jobs:
         continue-on-error: true
       - name: 构建 esbuild
         run: pnpm rebuild esbuild || true
+      - name: 构建前端
+        run: npx vite build
       - name: 构建 Tauri
         run: pnpm tauri build --no-bundle
+        env:
+          CI: "false"
       - name: 上传产物
         uses: actions/upload-artifact@v4
         with:
@@ -53,8 +57,12 @@ jobs:
         continue-on-error: true
       - name: 构建 esbuild
         run: pnpm rebuild esbuild || true
+      - name: 构建前端
+        run: npx vite build
       - name: 构建 Tauri（Linux）
         run: pnpm tauri build --no-bundle
+        env:
+          CI: "false"
       - name: 上传产物
         uses: actions/upload-artifact@v4
         with:
