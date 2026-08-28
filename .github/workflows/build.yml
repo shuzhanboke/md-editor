@@ -1,0 +1,99 @@
+name: 构建发布
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: dtolnay/rust-toolchain@stable
+      - name: 安装依赖
+        run: pnpm install
+      - name: 构建 Tauri
+        run: pnpm tauri build --no-bundle
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: md-editor-windows
+          path: src-tauri/target/release/md-editor.exe
+
+  build-linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu
+      - name: 安装系统依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+      - name: 安装前端依赖
+        run: pnpm install
+      - name: 构建 Tauri（Linux）
+        run: pnpm tauri build --no-bundle
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: md-editor-linux
+          path: src-tauri/target/release/md-editor
+
+  release:
+    needs: [build-windows, build-linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: md-editor-windows
+          path: windows
+      - uses: actions/download-artifact@v4
+        with:
+          name: md-editor-linux
+          path: linux
+      - name: 重命名产物
+        run: |
+          mv windows/md-editor.exe md-editor-windows.exe
+          chmod +x linux/md-editor
+          mv linux/md-editor md-editor-linux
+      - name: 发布 Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name || 'latest' }}
+          name: MD 编辑器 ${{ github.ref_name || 'latest' }}
+          body: |
+            # MD 编辑器
+
+            Typora 风格本地 Markdown 编辑器。
+
+            ## 下载
+
+            - **Windows**: `md-editor-windows.exe` — 双击即可运行
+            - **Linux**: `md-editor-linux` — `chmod +x md-editor-linux && ./md-editor-linux`
+
+            ## 功能
+            - 即时渲染、语法高亮、数学公式、Mermaid 图表
+            - 多标签页、文件树、大纲、主题切换
+            - Git 集成、文档图谱、Vim 键位
+            - 导出 HTML/PDF/Word/Epub、一键发布
+          files: |
+            md-editor-windows.exe
+            md-editor-linux
