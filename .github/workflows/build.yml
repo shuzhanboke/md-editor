@@ -18,6 +18,8 @@ jobs:
         with:
           version: 11
       - uses: dtolnay/rust-toolchain@stable
+      - name: 配置 pnpm 允许 esbuild 构建
+        run: pnpm config set onlyBuiltDependencies '["esbuild"]' --location project
       - name: 安装依赖
         run: pnpm install
       - name: 构建 Tauri
@@ -45,6 +47,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+      - name: 配置 pnpm 允许 esbuild 构建
+        run: pnpm config set onlyBuiltDependencies '["esbuild"]' --location project
       - name: 安装前端依赖
         run: pnpm install
       - name: 构建 Tauri（Linux）
