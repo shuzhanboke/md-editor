@@ -916,6 +916,11 @@ class App {
     try {
       const entries = await api.listDir(dir);
       tree.innerHTML = "";
+      // 检查是否有 md 文件或子目录
+      if (entries.length === 0) {
+        tree.innerHTML = '<div class="search-empty">该目录无 Markdown 文件</div>';
+        return;
+      }
       // 顶部：目录名 + "更换目录"按钮
       const header = document.createElement("div");
       header.className = "tree-root-header";
@@ -993,6 +998,9 @@ class App {
 
   /** 激活标签 */
   _activateTab(id, content) {
+    // 先提交块编辑，避免上一个标签的内容残留
+    if (this.editor.editingBlock) this.editor.commitBlockEdit();
+    if (this.editor.editing) this.editor.toggleSourceMode();
     this.activeTabId = id;
     const tab = this.tabs.find((t) => t.id === id);
     if (!tab) return;
