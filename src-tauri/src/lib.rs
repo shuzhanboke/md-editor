@@ -54,6 +54,7 @@ pub fn run() {
             commands::save_file_dialog,
             commands::set_window_title,
             commands::pick_directory,
+            commands::pick_dir_via_file,
             commands::search_in_dir,
             commands::save_image,
             commands::git_status,

@@ -181,6 +181,51 @@ export class Editor {
     }
   }
 
+  /** 跳转到源码第 N 行并高亮定位
+   *  渲染模式下自动切到源码模式；在源码文本节点中按行偏移定位光标，
+   *  临时高亮该行背景并滚动到视口中央。
+   */
+  goToLine(line) {
+    if (this.editingBlock) this.commitBlockEdit();
+    // 确保处于全文源码模式（便于按行号精确定位）
+    if (!this.editing) this.toggleSourceMode();
+
+    const lines = this.source.split("\n");
+    const targetLine = Math.max(1, Math.min(line | 0, lines.length));
+
+    // 计算目标行起始字符偏移（前面所有行长度 + 换行符）
+    let offset = 0;
+    for (let i = 0; i < targetLine - 1; i++) {
+      offset += lines[i].length + 1; // +1 for \n
+    }
+    const lineEnd = offset + (lines[targetLine - 1] || "").length;
+
+    const textNode = this.root.firstChild;
+    if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
+      this.root.focus();
+      return;
+    }
+    // 选中该行（行首→行尾），便于用户看到定位
+    const range = document.createRange();
+    range.setStart(textNode, Math.min(offset, textNode.length));
+    range.setEnd(textNode, Math.min(lineEnd, textNode.length));
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    this.root.focus();
+
+    // 临时高亮当前行：用 selection 的临时标记
+    // 滚动到视口中央
+    const rect = range.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) {
+      // 行可能不可见，用 root 的 scrollTop 估算
+      this.root.scrollTop = Math.max(0, (targetLine - 1) * 22);
+    } else {
+      const rootRect = this.root.getBoundingClientRect();
+      this.root.scrollTop += rect.top - rootRect.top - rootRect.height / 2 + rect.height / 2;
+    }
+  }
+
   /** 渲染模式：选中文字应用包裹格式（在 source 层面操作） */
   applyWrapFormat(before, after) {
     if (this.editing) return; // 全文源码模式由 main.js 处理

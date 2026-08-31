@@ -5,6 +5,11 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      version:
+        description: "版本号（如 v1.0.0，留空则用 latest）"
+        required: false
+        default: "latest"
 
 jobs:
   build-windows:
@@ -72,6 +77,7 @@ jobs:
   release:
     needs: [build-windows, build-linux]
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.version != '')
     permissions:
       contents: write
     steps:
@@ -91,8 +97,8 @@ jobs:
       - name: 发布 Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name || 'latest' }}
-          name: MD 编辑器 ${{ github.ref_name || 'latest' }}
+          tag_name: ${{ github.ref_name || github.event.inputs.version }}
+          name: MD 编辑器 ${{ github.ref_name || github.event.inputs.version }}
           body: |
             # MD 编辑器
 

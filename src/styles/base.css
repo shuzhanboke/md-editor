@@ -204,6 +204,15 @@ html, body {
   background: var(--scrollbar-thumb-hover);
 }
 
+/* 编辑主列：纵向排列 标签栏 + 编辑区，占满中间空间 */
+#editor-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
 /* 编辑区容器 */
 #editor-container {
   flex: 1;

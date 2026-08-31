@@ -71,6 +71,12 @@ export async function pickDirectory() {
   return cmd("pick_directory");
 }
 
+/** 通过选 md 文件来确定目录：弹出文件选择（可见 md），选文件后返回其目录 */
+export async function pickDirViaFile() {
+  if (!isTauri) return null;
+  return cmd("pick_dir_via_file");
+}
+
 /** 在工作区目录递归搜索内容，返回匹配结果 */
 export async function searchInDir(dir, query, useRegex = false) {
   if (!isTauri) return [];

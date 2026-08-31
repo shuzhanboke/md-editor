@@ -160,6 +160,28 @@ pub async fn pick_directory(app: tauri::AppHandle) -> Result<Option<String>, Str
         .map_err(|e| format!("对话框错误: {}", e))
 }
 
+/// 弹出文件选择对话框（可见 md 文件），选中 md 文件后返回其所在目录
+/// 用于"更换目录"：用户能看到 md 文件，选一个即可设置其目录为工作区
+#[tauri::command]
+pub async fn pick_dir_via_file(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    let (tx, rx) = std::sync::mpsc::channel();
+    app.dialog()
+        .file()
+        .add_filter("Markdown", &["md", "markdown", "txt"])
+        .pick_file(move |path| {
+            let result = path.and_then(|p| {
+                let p_str = p.to_string();
+                // 取选中文件所在目录
+                std::path::Path::new(&p_str)
+                    .parent()
+                    .map(|d| d.to_string_lossy().to_string())
+            });
+            let _ = tx.send(result);
+        });
+    rx.recv()
+        .map_err(|e| format!("对话框错误: {}", e))
+}
+
 /// 递归在工作区目录内搜索包含关键字的文件，返回匹配结果
 #[tauri::command]
 pub fn search_in_dir(

@@ -904,10 +904,19 @@ class App {
 
   /** 选择 Windows 工作区目录 */
   async pickWorkspaceDir() {
-    const dir = await api.pickDirectory();
+    // 先弹文件选择对话框（可见 md 文件），选 md 文件后取其目录
+    let dir = await api.pickDirViaFile();
+    // 若用户取消文件选择，回退到文件夹选择对话框
+    if (!dir) dir = await api.pickDirectory();
     if (!dir) return;
     this.currentDir = dir;
     localStorage.setItem("md-lastdir", dir);
+    // 更换目录时自动展开侧边栏，确保文件树可见
+    if (this.sidebarCollapsed) {
+      this.sidebarCollapsed = false;
+      document.getElementById("sidebar").classList.remove("collapsed");
+      localStorage.setItem("md-sidebar", "open");
+    }
     await this._refreshFileTree(dir);
   }
 
@@ -935,9 +944,31 @@ class App {
       });
       tree.appendChild(header);
       this._renderTreeChildren(entries, tree, 1);
+      // 若顶层无 md 文件（只有子目录），自动展开第一个子目录，让 md 立即可见
+      const hasMdTop = entries.some((e) => !e.is_dir);
+      if (!hasMdTop) {
+        const firstDir = entries.find((e) => e.is_dir);
+        if (firstDir) await this._expandTreeDir(firstDir, tree);
+      }
     } catch (e) {
       tree.innerHTML = `<div class="tree-item">无法读取目录: ${e}</div>`;
     }
+  }
+
+  /** 展开文件树中的某个目录（模拟点击展开） */
+  async _expandTreeDir(dirEntry, container) {
+    try {
+      const sub = await api.listDir(dirEntry.path);
+      // 按 data-path 精确匹配对应 tree-item
+      const items = container.querySelectorAll(".tree-children > .tree-item");
+      for (const item of items) {
+        if (item.dataset.path === dirEntry.path) {
+          item.dataset.expanded = "1";
+          this._renderTreeChildren(sub, item.parentElement, 2);
+          break;
+        }
+      }
+    } catch { /* 忽略 */ }
   }
 
   _renderTreeChildren(entries, parent, depth) {
@@ -946,6 +977,7 @@ class App {
     for (const e of entries) {
       const item = document.createElement("div");
       item.className = "tree-item";
+      item.dataset.path = e.path;
       item.style.paddingLeft = `${8 + depth * 16}px`;
       const icon = e.is_dir ? "📁" : (e.name.endsWith(".md") || e.name.endsWith(".markdown") ? "📝" : "📄");
       item.innerHTML = `<span class="tree-icon">${icon}</span><span class="tree-name">${e.name}</span>`;
@@ -1314,6 +1346,9 @@ class App {
       });
       bar.appendChild(tab);
     }
+    // 让活跃标签滚入视图（打开文件后可见当前页面）
+    const active = bar.querySelector(".tab.active");
+    if (active) active.scrollIntoView({ block: "nearest", inline: "nearest" });
   }
 
   /** 状态栏 */
@@ -1446,14 +1481,16 @@ class App {
     }, 300);
   }
 
-  /** 点击搜索结果打开文件 */
+  /** 点击搜索结果打开文件并跳转到匹配行 */
   async _openSearchHit(hit) {
     try {
       const content = await api.readFile(hit.path);
       this.newTab(content, hit.name, hit.path);
       // 关闭搜索面板
       document.getElementById("search-panel").classList.add("hidden");
-      // TODO: 跳转到具体行（当前整体渲染不支持行号定位）
+      // 切到源码模式并定位到匹配行（渲染模式无法按行号定位）
+      this.editor.goToLine(hit.line);
+      this._toast(`已跳转至第 ${hit.line} 行`);
     } catch (e) {
       alert("打开失败: " + e);
     }
