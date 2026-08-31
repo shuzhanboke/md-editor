@@ -7,7 +7,7 @@
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
     "beforeDevCommand": "npx vite",
-    "beforeBuildCommand": "",
+    "beforeBuildCommand": "echo skip",
   },
   "app": {
     "windows": [
